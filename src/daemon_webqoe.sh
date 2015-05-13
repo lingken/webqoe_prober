@@ -2,6 +2,7 @@ PRO_PATH="/root/webqoe"
 PROGRAM="webqoe_prober"
 MAC=`ifconfig wlan0 | grep HWaddr | awk '{print $5}'|sed 's/://g'`
 INTERFACE="eth0.2"
+PACKET_NUMBER="10000"
 
 while true; do
 	PRO_NOW=`ps | grep $PROGRAM | grep -v grep | wc -l`
@@ -15,7 +16,7 @@ while true; do
 		rm $PRO_PATH/$MAC/*
 		# ./$PROGRAM 2>/dev/null 1>&2 &
 		# TIME=`date +%Y%m%d-%H-%M-%S`
-		/usr/sbin/$PROGRAM $MAC $INTERFACE 2>/dev/null 1>&2 &
+		/usr/sbin/$PROGRAM $MAC $INTERFACE $PACKET_NUMBER 2>/dev/null 1>&2 &
 	else
 		echo "webqoe_prober is running"
 	fi

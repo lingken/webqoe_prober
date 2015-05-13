@@ -18,7 +18,7 @@
 #define SNAP_LEN 1518
 #define REF_EXPIRE 5
 #define FILE_EXPIRE 60
-#define PACKET_NUMBER 40000
+// #define PACKET_NUMBER 40000
 // EXPIRE in seconds
 pcap_t *handle;
 /* on OpenWrt */
@@ -354,13 +354,21 @@ void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char
 
 int main(int argc, char *argv[])
 {
-	// argv[1] - MAC, argv[2] - dev
-	if (argc < 3) {
+	// argv[1] - MAC, argv[2] - dev, argv[3] - packet number
+	if (argc < 4) {
 		fprintf(stderr, "Not enough arg number, no MAC addr or interface name.\n");
 		return(2);
 	}
+	
+	char filename[256];
+	memset(filename, 0, sizeof(filename));
+	struct timeval current;
+	gettimeofday(&current, NULL);
+	// sprintf(filename, "/root/webqoe/%s/%d.txt", argv[1], current.tv_sec);
+	sprintf(filename, "tmptrace.txt");
 	memset(dev, 0, sizeof(dev));
 	strncpy(dev, argv[2], 256);
+	int packet_number = atoi(argv[3]);
 
 	printf("%s\n", "Hello World!");
 	if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1) {
@@ -388,16 +396,10 @@ int main(int argc, char *argv[])
 
 	initialize_regex();
 	initialize_record();
-	pcap_loop(handle, PACKET_NUMBER, process_packet, NULL);
+	pcap_loop(handle, packet_number, process_packet, NULL);
 
 	printf("Packet Capture Complete\n");
 	
-	char filename[256];
-	memset(filename, 0, sizeof(filename));
-	struct timeval current;
-	gettimeofday(&current, NULL);
-	// sprintf(filename, "/root/webqoe/%s/%d.txt", argv[1], current.tv_sec);
-	sprintf(filename, "tmptrace.txt");
 	filepointer = fopen(filename, "w");
 
 	delete_and_free_all();
@@ -408,7 +410,7 @@ int main(int argc, char *argv[])
 	fprintf(filepointer, "  Get number: %d\n", c_get);
 	fprintf(filepointer, "Match number: %d\n", c_match);
 
-	// fclose(filepointer);
+	fclose(filepointer);
 	free(base);
 
 	pcap_freecode(&fp);
