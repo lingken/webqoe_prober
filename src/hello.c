@@ -119,6 +119,7 @@ typedef struct packet_record {
 	char Referer[STRING_LENGTH];
 	struct timeval timestamp;
 	char IP_src[20];
+	char dev_MAC[20];
 
 } packet_record;
 
@@ -290,6 +291,7 @@ void match_payload(const char *payload, int packet_no, const struct pcap_pkthdr 
 void display_packet_record(packet_record *p_record) {
 	printf("time: %d + %d\n", (p_record->timestamp).tv_sec, (p_record->timestamp).tv_usec);
 	printf("IP src: %s\n", p_record->IP_src);
+	printf("dev MAC: %s\n", p_record->dev_MAC);
 	printf("GET: %s\n", p_record->GET);
 	printf("Host: %s\n", p_record->Host);
 	printf("User-Agent: %s\n", p_record->User_Agent);
@@ -298,9 +300,10 @@ void display_packet_record(packet_record *p_record) {
 }
 
 void write_packet_record_to_file(packet_record *p_record) {
-	fprintf(filepointer, "time: %d + %d, IP src: %s, GET: %s, Host: %s, User-Agent: %s, Referer: %s\n", 
+	fprintf(filepointer, "time: %d + %d, IP src: %s, dev MAC: %s, GET: %s, Host: %s, User-Agent: %s, Referer: %s\n", 
 		(p_record->timestamp).tv_sec, (p_record->timestamp).tv_usec,
 		p_record->IP_src,
+		p_record->dev_MAC,
 		p_record->GET,
 		p_record->Host,
 		p_record->User_Agent,
