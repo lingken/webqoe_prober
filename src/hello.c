@@ -369,19 +369,19 @@ void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char
 
 int main(int argc, char *argv[])
 {
-	// argv[1] - MAC, argv[2] - dev, argv[3] - packet number
+	// argv[1] - file name, argv[2] - dev, argv[3] - packet number
 	if (argc < 4) {
 		fprintf(stderr, "Not enough arg number.\n");
-		fprintf(stderr, "argv[1] - MAC, argv[2] - dev, argv[3] - packet number\n");
+		fprintf(stderr, "argv[1] - file name, argv[2] - dev, argv[3] - packet number\n");
 		return(2);
 	}
 
-	char filename[256];
-	memset(filename, 0, sizeof(filename));
-	struct timeval current;
-	gettimeofday(&current, NULL);
+	// char filename[256];
+	// memset(filename, 0, sizeof(filename));
+	// struct timeval current;
+	// gettimeofday(&current, NULL);
 	// sprintf(filename, "/root/webqoe/%s/%d.txt", argv[1], current.tv_sec);
-	sprintf(filename, "tmptrace.txt");
+	// sprintf(filename, "tmptrace.txt");
 	memset(dev, 0, sizeof(dev));
 	strncpy(dev, argv[2], 256);
 	int packet_number = atoi(argv[3]);
@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
 
 	printf("Packet Capture Complete\n");
 	
-	filepointer = fopen(filename, "w");
+	filepointer = fopen(argv[1], "w");
 
 	delete_and_free_all();
 

@@ -16,7 +16,8 @@ while true; do
 		rm $PRO_PATH/$MAC/*
 		# ./$PROGRAM 2>/dev/null 1>&2 &
 		# TIME=`date +%Y%m%d-%H-%M-%S`
-		/usr/sbin/$PROGRAM $MAC $INTERFACE $PACKET_NUMBER 2>/dev/null 1>&2 &
+		TIMESTAMP = `data +%s`
+		/usr/sbin/$PROGRAM $PRO_PATH/$MAC/$TIMESTAMP.txt $INTERFACE $PACKET_NUMBER 2>/dev/null 1>&2 &
 	else
 		echo "webqoe_prober is running"
 	fi
