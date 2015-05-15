@@ -12,7 +12,7 @@ while true; do
 		echo "123" > $PRO_PATH/rsync_pass
 		chmod 600 $PRO_PATH/rsync_pass
 
-		/usr/bin/rsync -zzr --progress $PRO_PATH/$MAC lk@166.111.9.242::lk --password-file=$PRO_PATH/rsync_pass
+		/usr/bin/rsync -zr --progress $PRO_PATH/$MAC lk@166.111.9.242::lk --password-file=$PRO_PATH/rsync_pass
 		rm $PRO_PATH/$MAC/*
 		# ./$PROGRAM 2>/dev/null 1>&2 &
 		# TIME=`date +%Y%m%d-%H-%M-%S`
