@@ -1,7 +1,7 @@
 PRO_PATH="/root/webqoe"
 PROGRAM="webqoe_prober"
 MAC=`ifconfig wlan0 | grep HWaddr | awk '{print $5}'|sed 's/://g'`
-INTERFACE="eth0.2"
+INTERFACE="wlan0"
 PACKET_NUMBER="10000"
 
 while true; do

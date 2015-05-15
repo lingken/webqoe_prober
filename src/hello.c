@@ -22,7 +22,7 @@
 // EXPIRE in seconds
 pcap_t *handle;
 /* on OpenWrt */
-char dev[256] = "eth1";
+char dev[256] = "wlan0";
 /* on my computer */
 // char dev[] = "en0";
 char errbuf[PCAP_ERRBUF_SIZE];
@@ -41,7 +41,7 @@ int c_match = 0;
 /* Ethernet header */
 struct sniff_ethernet {
 	// u_char ether_dhost[ETHER_ADDR_LEN]; /* Destination host address */
-	// u_char ether_shost[ETHER_ADDR_LEN]; /* Source host address */
+	// u_char ether_shost[ETHER_ADDR_LEN];  Source host address 
 	struct ether_addr ether_dhost;
 	struct ether_addr ether_shost;
 	u_short ether_type; /* IP? ARP? RARP? etc */
@@ -118,8 +118,10 @@ typedef struct packet_record {
 	char User_Agent[STRING_LENGTH];
 	char Referer[STRING_LENGTH];
 	struct timeval timestamp;
-	char IP_src[20];
-	char dev_MAC[20];
+	// char IP_src[20];
+	// char IP_dst[20];
+	char MAC_src[20];
+	// char MAC_dst[20];
 
 } packet_record;
 
@@ -253,7 +255,8 @@ void match_payload(const char *payload, int packet_no, const struct pcap_pkthdr 
 		} else {
 			return;
 		}
-		printf("shost: %s, dhost: %s\n", ether_ntoa(&ethernet->ether_shost), ether_ntoa(&ethernet->ether_dhost));
+		// printf("shost: %s, dhost: %s\n", ether_ntoa(&ethernet->ether_shost), ether_ntoa(&ethernet->ether_dhost));
+		// printf("ipsrc: %s, ipdst: %s\n", inet_ntoa(ip_header->ip_src), inet_ntoa(ip_header->ip_dst));
 		printf("Packet number: %d\n", packet_no);
 		printf("          GET: %s\n", GET);
 		printf("         Host: %s\n", Host);
@@ -278,7 +281,11 @@ void match_payload(const char *payload, int packet_no, const struct pcap_pkthdr 
 		strncpy(p_record->Host, Host, SAFE_LENGTH);
 		strncpy(p_record->User_Agent, User_Agent, SAFE_LENGTH);
 		strncpy(p_record->Referer, Referer, SAFE_LENGTH);
-		strncpy(p_record->IP_src, inet_ntoa(ip_header->ip_src), 20);
+
+		// strncpy(p_record->IP_src, inet_ntoa(ip_header->ip_src), 20);
+		// strncpy(p_record->IP_dst, inet_ntoa(ip_header->ip_dst), 20);
+		strncpy(p_record->MAC_src, ether_ntoa(&ethernet->ether_shost), 20);
+		// strncpy(p_record->MAC_dst, ether_ntoa(&ethernet->ether_dhost), 20);
 		p_record->timestamp = pcap_header->ts;
 
 		add_to_record_queue(p_record);
@@ -290,8 +297,10 @@ void match_payload(const char *payload, int packet_no, const struct pcap_pkthdr 
 
 void display_packet_record(packet_record *p_record) {
 	printf("time: %d + %d\n", (p_record->timestamp).tv_sec, (p_record->timestamp).tv_usec);
-	printf("IP src: %s\n", p_record->IP_src);
-	printf("dev MAC: %s\n", p_record->dev_MAC);
+	// printf("IP src: %s\n", p_record->IP_src);
+	// printf("IP dst: %s\n", p_record->IP_dst);
+	printf("MAC src: %s\n", p_record->MAC_src);
+	// printf("MAC dst: %s\n", p_record->MAC_dst);
 	printf("GET: %s\n", p_record->GET);
 	printf("Host: %s\n", p_record->Host);
 	printf("User-Agent: %s\n", p_record->User_Agent);
@@ -300,10 +309,12 @@ void display_packet_record(packet_record *p_record) {
 }
 
 void write_packet_record_to_file(packet_record *p_record) {
-	fprintf(filepointer, "time: %d + %d, IP src: %s, dev MAC: %s, GET: %s, Host: %s, User-Agent: %s, Referer: %s\n", 
+	fprintf(filepointer, "time: %d + %d, MAC src: %s, GET: %s, Host: %s, User-Agent: %s, Referer: %s\n", 
 		(p_record->timestamp).tv_sec, (p_record->timestamp).tv_usec,
-		p_record->IP_src,
-		p_record->dev_MAC,
+		// p_record->IP_src,
+		// p_record->IP_dst,
+		p_record->MAC_src,
+		// p_record->MAC_dst,
 		p_record->GET,
 		p_record->Host,
 		p_record->User_Agent,
@@ -334,6 +345,9 @@ void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char
 	u_int size_tcp;
 
 	ethernet = (struct sniff_ethernet*)(packet);
+	// printf("\n");
+	// printf("shost: %s, dhost: %s\n", ether_ntoa(&ethernet->ether_shost), ether_ntoa(&ethernet->ether_dhost));
+
 
 	ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
 	size_ip = IP_HL(ip)*4;
@@ -349,6 +363,7 @@ void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char
 	}
 	payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
 
+	// printf("ipsrc: %s, ipdst: %s\n", inet_ntoa(ip->ip_src), inet_ntoa(ip->ip_dst));
 	match_payload(payload, count, header, ip, ethernet);
 }
 
@@ -365,8 +380,8 @@ int main(int argc, char *argv[])
 	memset(filename, 0, sizeof(filename));
 	struct timeval current;
 	gettimeofday(&current, NULL);
-	sprintf(filename, "/root/webqoe/%s/%d.txt", argv[1], current.tv_sec);
-	// sprintf(filename, "tmptrace.txt");
+	// sprintf(filename, "/root/webqoe/%s/%d.txt", argv[1], current.tv_sec);
+	sprintf(filename, "tmptrace.txt");
 	memset(dev, 0, sizeof(dev));
 	strncpy(dev, argv[2], 256);
 	int packet_number = atoi(argv[3]);
