@@ -416,6 +416,14 @@ int main(int argc, char *argv[])
 
 	printf("Packet Capture Complete\n");
 	
+	if (base->next == NULL) {
+		// no record in ref_queue
+		free(base);
+		pcap_freecode(&fp);
+		pcap_close(handle);
+		return 0;
+	}
+
 	filepointer = fopen(argv[1], "w");
 
 	delete_and_free_all();
