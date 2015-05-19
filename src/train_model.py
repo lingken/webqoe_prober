@@ -9,7 +9,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 
 top_sites = {
-	'baidu:1', #1
+	'baidu', #1
 	'taobao', #2
 	'qq', #3
 	'sina', #4
@@ -109,6 +109,22 @@ def train_classification_model():
 		target_list = [0, 1]
 
 		#method3
+		# tmp_data_list = [[], []]
+		# for item in visit_record[site][0]:
+		# 	tmp_data_list[0].extend(re.findall(r'[\w]+', item))
+		# for item in visit_record[site][1]:
+		# 	tmp_data_list[1].extend(re.findall(r'[\w]+', item))
+		# tmp_data_list[0] = list(set(tmp_data_list[0]))
+		# tmp_data_list[1] = list(set(tmp_data_list[1]))
+		# data_list = ['', '']
+		# for item in tmp_data_list[0]:
+		# 	data_list[0] = data_list[0] + item + ','
+		# for item in tmp_data_list[1]:
+		# 	data_list[1] = data_list[1] + item + ','
+		# target_list = [0, 1]
+		# print data_list[1]
+
+
 		trained_model[site].fit(data_list, target_list)
 
 def dump_trained_model():
@@ -117,6 +133,8 @@ def dump_trained_model():
 		pickle.dump(trained_model[site], output)
 		output.close()
 
+# Only consider the first request of a session as a user click
+# Do not have the 10s time limit
 def basic_test():
 	path = '../parsed_data'
 	item_list = os.listdir(path)
@@ -164,6 +182,7 @@ def basic_test():
 								predicted_object_number = predicted_object_number + 1
 	print 'accuracy: %f, predicted_session_number: %d, session_number: %d' % (1.0 * predicted_session_number / session_number, predicted_session_number, session_number)
 	print 'accuracy: %f, predicted_object_number : %d, object_number : %d' % (1.0 * predicted_object_number / object_number, predicted_object_number, object_number)
+
 if __name__ == '__main__':
 	read_files_and_process()
 	train_classification_model()
