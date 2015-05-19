@@ -159,6 +159,7 @@ if __name__ == "__main__":
 	visit_record = pickle.load(pkl_file)
 	for item in visit_record['sina'][0]:
 		print item
+	pkl_file.close()
 	# parse_lines(lines)
 	# dissect_url_into_words()
 	# process_and_write_to_file()
