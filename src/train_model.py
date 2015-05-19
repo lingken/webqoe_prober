@@ -95,8 +95,20 @@ def train_classification_model():
 		if click_len == 0 or object_len == 0:
 			continue
 		trained_model[site] = Pipeline([('vect', CountVectorizer()), ('tfdif', TfidfTransformer()), ('clf', MultinomialNB())])
-		data_list = visit_record[site][0] + visit_record[site][1]
-		target_list = [0 for i in range(click_len)] + [1 for i in range(object_len)]
+		
+		# method1
+		# data_list = visit_record[site][0] + visit_record[site][1]
+		# target_list = [0 for i in range(click_len)] + [1 for i in range(object_len)]
+		
+		#method2
+		data_list = ['', '']
+		for item in visit_record[site][0]:
+			data_list[0] = data_list[0] + item
+		for item in visit_record[site][1]:
+			data_list[1] = data_list[1] + item
+		target_list = [0, 1]
+
+		#method3
 		trained_model[site].fit(data_list, target_list)
 
 def dump_trained_model():
@@ -105,7 +117,55 @@ def dump_trained_model():
 		pickle.dump(trained_model[site], output)
 		output.close()
 
+def basic_test():
+	path = '../parsed_data'
+	item_list = os.listdir(path)
+	session_number = 0
+	predicted_session_number = 0
+	object_number = 0
+	predicted_object_number = 0
+
+	for item in item_list:
+		if item.find('.txt') >= 0:
+			f = open('%s/%s' % (path, item), 'r')
+			lines = f.readlines()
+			f.close()
+
+			regex_sesion = re.compile(r'a new session')
+			regex_url = re.compile(r'time: (\d*), url: (.*)')
+			site_name = None
+			a_new_session = False
+			for line in lines:
+				match = re.match(regex_sesion, line)
+				if match is not None:
+					a_new_session = True
+					site_name = None
+					continue
+
+				match = re.match(regex_url, line)
+				if match is not None:
+					url = match.group(2)
+
+					if a_new_session:
+						a_new_session = False
+
+						domain = url.split('/')[0].split('.')
+						for item in domain:
+							if item in trained_model:
+								site_name = item
+								session_number = session_number + 1
+								if trained_model[item].predict([url])[0] == 0:
+									predicted_session_number = predicted_session_number + 1
+								break
+					else:
+						if site_name is not None:
+							object_number = object_number + 1
+							if trained_model[site_name].predict([url])[0] == 1:
+								predicted_object_number = predicted_object_number + 1
+	print 'accuracy: %f, predicted_session_number: %d, session_number: %d' % (1.0 * predicted_session_number / session_number, predicted_session_number, session_number)
+	print 'accuracy: %f, predicted_object_number : %d, object_number : %d' % (1.0 * predicted_object_number / object_number, predicted_object_number, object_number)
 if __name__ == '__main__':
 	read_files_and_process()
 	train_classification_model()
-	dump_trained_model()
+	# dump_trained_model()
+	basic_test()
