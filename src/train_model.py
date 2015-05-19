@@ -186,5 +186,5 @@ def basic_test():
 if __name__ == '__main__':
 	read_files_and_process()
 	train_classification_model()
-	# dump_trained_model()
-	basic_test()
+	dump_trained_model()
+	# basic_test()
