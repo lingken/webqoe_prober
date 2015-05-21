@@ -178,8 +178,17 @@ def basic_test():
 					else:
 						if site_name is not None:
 							object_number = object_number + 1
-							if trained_model[site_name].predict([url])[0] == 1:
-								predicted_object_number = predicted_object_number + 1
+							# if trained_model[site_name].predict([url])[0] == 1:
+								# predicted_object_number = predicted_object_number + 1
+
+							try:
+								if trained_model[site_name].predict([url])[0] == 1:
+									predicted_object_number = predicted_object_number + 1
+							except Exception, e:
+								print e
+								print url
+								print item
+							
 	print 'accuracy: %f, predicted_session_number: %d, session_number: %d' % (1.0 * predicted_session_number / session_number, predicted_session_number, session_number)
 	print 'accuracy: %f, predicted_object_number : %d, object_number : %d' % (1.0 * predicted_object_number / object_number, predicted_object_number, object_number)
 

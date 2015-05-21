@@ -102,7 +102,7 @@ def read_files():
 		record_dict = {}
 		session_list = []
 		file_list.sort()
-		print file_list
+		# print file_list
 		for item in file_list:
 			if item.find('.txt') < 0:
 				continue

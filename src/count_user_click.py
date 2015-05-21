@@ -39,8 +39,11 @@ def parse_lines(lines):
 			if len(visit_list) > 0 and (site_name in top_sites):
 				if site_name not in click_record:
 					click_record[site_name] = []
-				click_number = len(visit_list) - sum(trained_model[site_name].predict(visit_list))
-				click_record[site_name].append('click_number: %d, time: %s - %s, MAC: %s' % (click_number, time_list[0], time_list[-1], MAC))
+				try:
+					click_number = len(visit_list) - sum(trained_model[site_name].predict(visit_list))
+					click_record[site_name].append('click_number: %d, time: %s - %s, MAC: %s' % (click_number, time_list[0], time_list[-1], MAC))
+				except Exception, e:
+					print e
 			a_new_session = True
 			site_name = None
 			MAC = match.group(1)
