@@ -90,10 +90,12 @@ def write_session_record(session_list, router, file_time):
 
 # 1431550800, 2015.5.14 05:00, Beijing time, 1 day - 86400s
 def read_files():
-	path = '../raw_data'
+	path = '../webqoe_data'
 	router_list = os.listdir(path)
 	for router in router_list:
 		new_path = path + '/' + router
+		if not os.path.isdir(new_path):
+			continue
 		file_list = os.listdir(new_path)
 		start_time = 1431550800
 		interval = 86400
