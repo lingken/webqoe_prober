@@ -11,6 +11,7 @@ from sklearn.pipeline import Pipeline
 trained_model = {}
 top_sites = set()
 click_record = {} # key: site, value: list of records
+f_anomaly = open('../anomaly/anomaly.txt', 'w')
 
 def read_models():
 	path = '../trained_model'
@@ -33,6 +34,8 @@ def parse_lines(lines):
 	visit_list = []
 	time_list = []
 
+	
+
 	for line in lines:
 		match = re.match(regex_sesion, line)
 		if match is not None:
@@ -40,8 +43,16 @@ def parse_lines(lines):
 				if site_name not in click_record:
 					click_record[site_name] = []
 				try:
-					click_number = len(visit_list) - sum(trained_model[site_name].predict(visit_list))
+					predicted = trained_model[site_name].predict(visit_list) # 0 - click, 1 - object
+					click_number = len(visit_list) - sum(predicted) # length - object
 					click_record[site_name].append('click_number: %d, time: %s - %s, MAC: %s' % (click_number, time_list[0], time_list[-1], MAC))
+
+					# output anomaly
+					if click_number >= 10:
+						for i in range(len(predicted)):
+							if (predicted[i] == 0):
+								f_anomaly.write('time: %d, url: %s\n' % (time_list[i], visit_list[i]))
+								# print 'time: %d, url: %s\n' % (time_list[i], visit_list[i])
 				except Exception, e:
 					print e
 			a_new_session = True
@@ -66,6 +77,8 @@ def parse_lines(lines):
 			time_list.append(timestamp)
 			visit_list.append(url)
 
+	
+
 def detect_user_click():
 	path = '../parsed_data'
 	item_list = os.listdir(path)
@@ -75,6 +88,7 @@ def detect_user_click():
 			lines = f.readlines()
 			parse_lines(lines)
 			f.close()
+	f_anomaly.close()
 
 def dump_record():
 	path = '../click_record'
