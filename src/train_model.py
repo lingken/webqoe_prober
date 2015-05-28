@@ -3,39 +3,38 @@ import collections
 import sys
 import os
 import pickle
+import url_extractor
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 
 top_sites = {
-	'baidu', #1
-	'taobao', #2
-	'qq', #3
+	# 'baidu', #1
+	# 'taobao', #2
+	# 'qq', #3
 	'sina', #4
-	'weibo', #5
-	'tmall', #6
-	'hao123', #7
-	'sohu', #8
-	'360', #9
-	'tianya', #10
-	'amazon', #11
-	'xinhuanet', #12
-	'people', #13
-	'cntv', #14
-	'gmw', #15
-	'soso', #16
-	'163', #17
-	'chinadaily', #18
-	'jd', #19
-	'youku', #20
-	'alipay', #21
-	'google', #22
-	'china', #23
-	'sogou', #24
-	'tudou', #25
-	# 'youdao',
-	# '3dmgame'
+	# 'weibo', #5
+	# 'tmall', #6
+	# 'hao123', #7
+	# 'sohu', #8
+	# '360', #9
+	# 'tianya', #10
+	# 'amazon', #11
+	# 'xinhuanet', #12
+	# 'people', #13
+	# 'cntv', #14
+	# 'gmw', #15
+	# 'soso', #16
+	# '163', #17
+	# 'chinadaily', #18
+	# 'jd', #19
+	# 'youku', #20
+	# 'alipay', #21
+	# 'google', #22
+	# 'china', #23
+	# 'sogou', #24
+	# 'tudou', #25
 }
 
 visit_record = {} #visit_record = {site_name:[ [click_list], [object_list] ]}
@@ -94,19 +93,19 @@ def train_classification_model():
 		object_len = len(visit_record[site][1])
 		if click_len == 0 or object_len == 0:
 			continue
-		trained_model[site] = Pipeline([('vect', CountVectorizer()), ('tfdif', TfidfTransformer()), ('clf', MultinomialNB())])
-		
+		# trained_model[site] = Pipeline([('vect', CountVectorizer()), ('tfdif', TfidfTransformer()), ('clf', MultinomialNB())])
+		trained_model[site] = Pipeline([('vect', CountVectorizer()), ('clf', MultinomialNB())])
 		# method1
-		# data_list = visit_record[site][0] + visit_record[site][1]
-		# target_list = [0 for i in range(click_len)] + [1 for i in range(object_len)]
-		
+		data_list = visit_record[site][0] + visit_record[site][1]
+		target_list = [0 for i in range(click_len)] + [1 for i in range(object_len)]
+		# print visit_record[site][0]
 		#method2
-		data_list = ['', '']
-		for item in visit_record[site][0]:
-			data_list[0] = data_list[0] + item
-		for item in visit_record[site][1]:
-			data_list[1] = data_list[1] + item
-		target_list = [0, 1]
+		# data_list = ['', '']
+		# for item in visit_record[site][0]:
+			# data_list[0] = data_list[0] + ',' + url_extractor.extract(item)
+		# for item in visit_record[site][1]:
+			# data_list[1] = data_list[1] + ',' + url_extractor.extract(item)
+		# target_list = [0, 1]
 
 		#method3
 		# tmp_data_list = [[], []]
@@ -124,8 +123,11 @@ def train_classification_model():
 		# target_list = [0, 1]
 		# print data_list[1]
 
-
+		# try:
 		trained_model[site].fit(data_list, target_list)
+		# except Exception, e:
+			# print site
+
 
 def dump_trained_model():
 	for site in trained_model:

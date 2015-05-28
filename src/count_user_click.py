@@ -3,6 +3,7 @@ import collections
 import sys
 import os
 import pickle
+import url_extractor
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB
@@ -12,6 +13,8 @@ trained_model = {}
 top_sites = set()
 click_record = {} # key: site, value: list of records
 f_anomaly = open('../anomaly/anomaly.txt', 'w')
+f_oneclick = open('../anomaly/one_click.txt', 'w')
+f_fine = open('../anomaly/fine.txt', 'w')
 
 def read_models():
 	path = '../trained_model'
@@ -53,8 +56,24 @@ def parse_lines(lines):
 							if (predicted[i] == 0):
 								f_anomaly.write('time: %d, url: %s\n' % (time_list[i], visit_list[i]))
 								# print 'time: %d, url: %s\n' % (time_list[i], visit_list[i])
+						f_anomaly.write('\n')
+					
+					elif click_number == 1:
+						for i in range(len(predicted)):
+							if (predicted[i] == 0):
+								f_oneclick.write('time: %d, url: %s\n' % (time_list[i], visit_list[i]))
+								# print 'time: %d, url: %s\n' % (time_list[i], visit_list[i])
+						f_oneclick.write('\n')
+					elif click_number > 1 and click_number < 10:
+						for i in range(len(predicted)):
+							if (predicted[i] == 0):
+								f_fine.write('time: %d, url: %s\n' % (time_list[i], visit_list[i]))
+								# print 'time: %d, url: %s\n' % (time_list[i], visit_list[i])
+						f_fine.write('\n')
+					# There are seesions with session number == 0
 				except Exception, e:
 					print e
+
 			a_new_session = True
 			site_name = None
 			MAC = match.group(1)
@@ -75,7 +94,7 @@ def parse_lines(lines):
 						break
 			
 			time_list.append(timestamp)
-			visit_list.append(url)
+			visit_list.append(url_extractor.extract(url))
 
 	
 
@@ -89,6 +108,8 @@ def detect_user_click():
 			parse_lines(lines)
 			f.close()
 	f_anomaly.close()
+	f_oneclick.close()
+	f_fine.close()
 
 def dump_record():
 	path = '../click_record'

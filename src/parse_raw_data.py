@@ -3,6 +3,37 @@ import collections
 import sys
 import os
 import pickle
+
+top_sites = {
+	'baidu', #1
+	'taobao', #2
+	'qq', #3
+	'sina', #4
+	'weibo', #5
+	'tmall', #6
+	'hao123', #7
+	'sohu', #8
+	'360', #9
+	'tianya', #10
+	'amazon', #11
+	'xinhuanet', #12
+	'people', #13
+	'cntv', #14
+	'gmw', #15
+	'soso', #16
+	'163', #17
+	'chinadaily', #18
+	'jd', #19
+	'youku', #20
+	'alipay', #21
+	'google', #22
+	'china', #23
+	'sogou', #24
+	'tudou', #25
+}
+
+site_session_dict = {}
+
 def is_valid_user_agent(user_agent):
 	string = user_agent.lower()
 	if string.find('chrome') >= 0:
@@ -82,11 +113,36 @@ def write_session_record(session_list, router, file_time):
 	file_name = '../parsed_data/%s_%d.txt' % (router, file_time)
 	f_out = open(file_name, 'w')
 	for session in session_list:
+		# write out session here; I can separate different websites here
+		# generate session records by site
+		domain = session.url_list[0].split('/')[0].split('.')
+		site = None
+		for item in domain:
+			if item in top_sites:
+				site = item
+				break;
+		if site is not None:
+			if site not in site_session_dict:
+				site_session_dict[site] = []
+			site_session_dict[site].append(session)
+
 		f_out.write('a new session: %s\n' % session.MAC)
 		for timestamp, url in zip(session.timestamp_list, session.url_list):
 			f_out.write('time: %s, url: %s\n' % (timestamp, url))
 		f_out.write('\n')
 	f_out.close()
+
+def write_visit_by_site():
+	print 'write_by_site'
+	for site in site_session_dict:
+		print site
+		f_out = open('../visit_by_site/%s.txt' % site, 'w')
+		for session in site_session_dict[site]:
+			f_out.write('a new session: %s\n' % session.MAC)
+			for timestamp, url in zip(session.timestamp_list, session.url_list):
+				f_out.write('time: %s, url: %s\n' % (timestamp, url))
+			f_out.write('\n')
+		f_out.close()	
 
 # 1431550800, 2015.5.14 05:00, Beijing time, 1 day - 86400s
 def read_files():
@@ -100,6 +156,8 @@ def read_files():
 		start_time = 1431550800
 		interval = 86400
 		record_dict = {}
+		# record_dict {PC/phone_MAC -> Useragent -> Ref -> Session}
+
 		session_list = []
 		file_list.sort()
 		# print file_list
@@ -121,3 +179,4 @@ def read_files():
 
 if __name__ == "__main__":
 	read_files()
+	write_visit_by_site()
