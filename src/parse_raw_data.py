@@ -136,21 +136,27 @@ invalid_type_dict = {
 }
 # for this site, only url in this filter can it pass
 absolute_filter = {
+	'qq' : {'www.qq.com/', },
 	
 }
 # for this site, if a url domain contains these words, it cannot be passed
 negative_filter = {
 	'163' : {'fs-', 'count', 'money', 'music', }, # money, music are useful url, however they are always session = 1
-	'sina': {'login', 'video', 'comment', },
-	'qq'  : {'dns', },
+	'sina': {'login', 'video', 'comment', 'dpool', 'js', },
+	'qq'  : {'dns', 'html5', 'short', },
 }
 def pass_filter(site, url):
 	# decide if a url is the beginning of a session
 	match = re.match(regex_end_url, url)
-	if match is nor None:
-		url_type = match(1)
+	if match is not None:
+		url_type = match.group(1)
 		if url_type in invalid_type_dict:
 			return False
+	if site in negative_filter:
+		for item in negative_filter[site]:
+			if url.find(item) >= 0:
+				return False
+	return True
 
 def write_session_record(session_list, router, file_time):
 	if len(session_list) == 0:
@@ -160,7 +166,8 @@ def write_session_record(session_list, router, file_time):
 	for session in session_list:
 		# write out session here; I can separate different websites here
 		# generate session records by site
-		domain = session.url_list[0].split('/')[0].split('.')
+		begin_url = session.url_list[0]
+		domain = begin_url.split('/')[0].split('.')
 		site = None
 
 		# calculate the keywords appeared in domain name
@@ -175,6 +182,10 @@ def write_session_record(session_list, router, file_time):
 				break;
 		# categorize sessions by site
 		if site is not None:
+			# use the filter to process sites that belong to top_sites
+			if not pass_filter(site, begin_url):
+				continue
+
 			if site not in site_session_dict:
 				site_session_dict[site] = []
 			site_session_dict[site].append(session)
