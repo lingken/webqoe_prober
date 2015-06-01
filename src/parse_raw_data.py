@@ -5,34 +5,49 @@ import os
 import pickle
 
 top_sites = {
-	'baidu', #1
+	# 'baidu', #1
 	'taobao', #2
 	'qq', #3
 	'sina', #4
 	'weibo', #5
 	'tmall', #6
-	'hao123', #7
-	'sohu', #8
-	'360', #9
-	'tianya', #10
+	# 'hao123', #7
+	# 'sohu', #8
+	# '360', #9
+	# 'tianya', #10
 	'amazon', #11
-	'xinhuanet', #12
-	'people', #13
-	'cntv', #14
-	'gmw', #15
+	# 'xinhuanet', #12
+	# 'people', #13
+	# 'cntv', #14
+	# 'gmw', #15
 	'soso', #16
 	'163', #17
-	'chinadaily', #18
+	# 'chinadaily', #18
 	'jd', #19
 	'youku', #20
-	'alipay', #21
-	'google', #22
-	'china', #23
-	'sogou', #24
+	# 'alipay', #21
+	# 'google', #22
+	# 'china', #23
+	# 'sogou', #24
 	'tudou', #25
-}
 
+	# 'letv', always session = 1
+	'zhihu',
+	# 'aliyun',
+	# 'apple',
+	'tsinghua',
+	'youdao',
+	'wikipedia',
+	'acfun',
+	'bilibili',
+	# 'kankan',
+	# 'ijinshan',
+	# 'qidian'
+}
+# each session has its visit list
 site_session_dict = {}
+# calculate the domain name keywords of new sessions
+domain_keyword_dict = {}
 
 def is_valid_user_agent(user_agent):
 	string = user_agent.lower()
@@ -40,7 +55,7 @@ def is_valid_user_agent(user_agent):
 		return True
 	if string.find('firefox') >= 0:
 		return True
-	if string.find('firefox') >= 0:
+	if string.find('safari') >= 0:
 		return True;
 	if string.find('ie') >= 0:
 		return True
@@ -117,6 +132,13 @@ def write_session_record(session_list, router, file_time):
 		# generate session records by site
 		domain = session.url_list[0].split('/')[0].split('.')
 		site = None
+
+		# calculate the keywords appeared in domain name
+		for keyword in domain:
+			if keyword not in domain_keyword_dict:
+				domain_keyword_dict[keyword] = 0
+			domain_keyword_dict[keyword] = domain_keyword_dict[keyword] + 1
+
 		for item in domain:
 			if item in top_sites:
 				site = item
@@ -149,6 +171,7 @@ def read_files():
 	path = '../webqoe_data'
 	router_list = os.listdir(path)
 	for router in router_list:
+		print 'Begin router: %s' % router
 		new_path = path + '/' + router
 		if not os.path.isdir(new_path):
 			continue
@@ -177,6 +200,14 @@ def read_files():
 			parse_lines(lines, record_dict, session_list)
 		write_session_record(session_list, router, file_time)
 
+def write_domain_keyword():
+	f = open('domain_keywords.txt', 'w')
+	for key, value in sorted(domain_keyword_dict.iteritems(), key=lambda (k,v): (v,k)):
+    	# print "%s: %s" % (key, value)
+		f.write('%s: %d\n'% (key, value))
+	f.close()
+
 if __name__ == "__main__":
 	read_files()
 	write_visit_by_site()
+	write_domain_keyword()
