@@ -20,7 +20,7 @@ top_sites = {
 	# 'people', #13
 	# 'cntv', #14
 	# 'gmw', #15
-	'soso', #16
+	# 'soso', #16
 	'163', #17
 	# 'chinadaily', #18
 	'jd', #19
@@ -35,11 +35,12 @@ top_sites = {
 	'zhihu',
 	# 'aliyun',
 	# 'apple',
-	'tsinghua',
+	# 'tsinghua',
 	'youdao',
 	'wikipedia',
 	'acfun',
 	'bilibili',
+	'zhidao',
 	# 'kankan',
 	# 'ijinshan',
 	# 'qidian'
@@ -122,6 +123,35 @@ def print_all_record():
 			print 'time: %s, url: %s' % (timestamp, url)
 		print
 
+regex_end_url = re.compile(r'.*\.(.{1,5})$')
+invalid_type_dict = {
+	'css',
+	'js',
+	'php',
+	'jpg',
+	'gif',
+	'png',
+	'svg',
+	'ico',
+}
+# for this site, only url in this filter can it pass
+absolute_filter = {
+	
+}
+# for this site, if a url domain contains these words, it cannot be passed
+negative_filter = {
+	'163' : {'fs-', 'count', 'money', 'music', }, # money, music are useful url, however they are always session = 1
+	'sina': {'login', 'video', 'comment', },
+	'qq'  : {'dns', },
+}
+def pass_filter(site, url):
+	# decide if a url is the beginning of a session
+	match = re.match(regex_end_url, url)
+	if match is nor None:
+		url_type = match(1)
+		if url_type in invalid_type_dict:
+			return False
+
 def write_session_record(session_list, router, file_time):
 	if len(session_list) == 0:
 		return
@@ -143,11 +173,13 @@ def write_session_record(session_list, router, file_time):
 			if item in top_sites:
 				site = item
 				break;
+		# categorize sessions by site
 		if site is not None:
 			if site not in site_session_dict:
 				site_session_dict[site] = []
 			site_session_dict[site].append(session)
 
+		# add a filter here to remove obvious invalid url
 		f_out.write('a new session: %s\n' % session.MAC)
 		for timestamp, url in zip(session.timestamp_list, session.url_list):
 			f_out.write('time: %s, url: %s\n' % (timestamp, url))
