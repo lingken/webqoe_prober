@@ -27,7 +27,7 @@ def read_models():
 			model_file.close()
 			top_sites.add(site)
 
-def parse_lines(lines):
+def parse_lines(lines, AP_MAC):
 	regex_sesion = re.compile(r'a new session: (.*)')
 	regex_url = re.compile(r'time: (\d*), url: (.*)')
 
@@ -50,7 +50,7 @@ def parse_lines(lines):
 					predicted = trained_model[site_name].predict(extract_url_list) # 0 - click, 1 - object
 					predicted[0] = 0
 					click_number = len(visit_list) - sum(predicted) # length - object
-					click_record[site_name].append('click_number: %d, time: %s - %s, Info: %s' % (click_number, time_list[0], time_list[-1], Info))
+					click_record[site_name].append('click_number: %d, time: %s - %s, Info: %s AP_MAC: %s' % (click_number, time_list[0], time_list[-1], Info, AP_MAC))
 
 					# output anomaly
 					if click_number >= 10:
@@ -107,7 +107,8 @@ def detect_user_click():
 		if item.find('.txt') >= 0:
 			f = open('%s/%s' % (path, item), 'r')
 			lines = f.readlines()
-			parse_lines(lines)
+			AP_MAC = item.split('.')[0].split('_')[0]
+			parse_lines(lines, AP_MAC)
 			f.close()
 	f_anomaly.close()
 	f_oneclick.close()
