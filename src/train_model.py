@@ -10,31 +10,22 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 
 top_sites = {
-	# 'baidu', #1
-	# 'taobao', #2
-	# 'qq', #3
+	'taobao', #2
+	'qq', #3
 	'sina', #4
-	# 'weibo', #5
-	# 'tmall', #6
-	# 'hao123', #7
-	# 'sohu', #8
-	# '360', #9
-	# 'tianya', #10
-	# 'amazon', #11
-	# 'xinhuanet', #12
-	# 'people', #13
-	# 'cntv', #14
-	# 'gmw', #15
-	# 'soso', #16
-	# '163', #17
-	# 'chinadaily', #18
-	# 'jd', #19
-	# 'youku', #20
-	# 'alipay', #21
-	# 'google', #22
-	# 'china', #23
-	# 'sogou', #24
-	# 'tudou', #25
+	'weibo', #5
+	'tmall', #6
+	'amazon', #11
+	'163', #17
+	'jd', #19
+	'youku', #20
+	'tudou', #25
+	'zhihu',
+	'youdao',
+	'wikipedia',
+	'acfun',
+	'bilibili',
+	'zhidao',
 }
 
 visit_record = {} #visit_record = {site_name:[ [click_list], [object_list] ]}
@@ -94,25 +85,34 @@ def train_classification_model():
 		if click_len == 0 or object_len == 0:
 			continue
 		# trained_model[site] = Pipeline([('vect', CountVectorizer()), ('tfdif', TfidfTransformer()), ('clf', MultinomialNB())])
-		trained_model[site] = Pipeline([('vect', CountVectorizer()), ('clf', MultinomialNB())])
+		trained_model[site] = Pipeline([('vect', CountVectorizer(stop_words=['www', 'com', 'cn'])), ('clf', MultinomialNB(alpha=0.0001))])
+		
 		# method1
-		data_list = visit_record[site][0] + visit_record[site][1]
-		target_list = [0 for i in range(click_len)] + [1 for i in range(object_len)]
-		# print visit_record[site][0]
+		# data_list = visit_record[site][0] + visit_record[site][1]
+		# click_list = [url_extractor.extract(full_url) for full_url in visit_record[site][0]]
+		# click_list = list(set(click_list))
+		# object_list = [url_extractor.extract(full_url) for full_url in visit_record[site][1]]
+		# object_list = list(set(object_list))
+		# data_list = click_list + object_list
+		# target_list = [0 for i in range(len(click_list))] + [1 for i in range(len(object_list))]
+		# print 'len_click: %d, len_object: %d\n' % (len(click_list), len(object_list))
+		# for item in object_list:
+		# 	print item
+
 		#method2
 		# data_list = ['', '']
 		# for item in visit_record[site][0]:
-			# data_list[0] = data_list[0] + ',' + url_extractor.extract(item)
+		# 	data_list[0] = data_list[0] + ',' + url_extractor.extract(item)
 		# for item in visit_record[site][1]:
-			# data_list[1] = data_list[1] + ',' + url_extractor.extract(item)
+		# 	data_list[1] = data_list[1] + ',' + url_extractor.extract(item)
 		# target_list = [0, 1]
 
 		#method3
 		# tmp_data_list = [[], []]
 		# for item in visit_record[site][0]:
-		# 	tmp_data_list[0].extend(re.findall(r'[\w]+', item))
+		# 	tmp_data_list[0].extend(re.findall(r'[\w]+', url_extractor.extract(item)))
 		# for item in visit_record[site][1]:
-		# 	tmp_data_list[1].extend(re.findall(r'[\w]+', item))
+		# 	tmp_data_list[1].extend(re.findall(r'[\w]+', url_extractor.extract(item)))
 		# tmp_data_list[0] = list(set(tmp_data_list[0]))
 		# tmp_data_list[1] = list(set(tmp_data_list[1]))
 		# data_list = ['', '']
@@ -121,8 +121,22 @@ def train_classification_model():
 		# for item in tmp_data_list[1]:
 		# 	data_list[1] = data_list[1] + item + ','
 		# target_list = [0, 1]
-		# print data_list[1]
 
+		#method4
+		tmp_data_list = [[], []]
+		for item in visit_record[site][0]:
+			tmp_data_list[0].extend(re.findall(r'[\w]+', url_extractor.extract(item)))
+		for item in visit_record[site][1]:
+			tmp_data_list[1].extend(re.findall(r'[\w]+', url_extractor.extract(item)))
+		tmp_data_list[0] = list(set(tmp_data_list[0]))
+		tmp_data_list[1] = list(set(tmp_data_list[1]))
+		
+		data_list = tmp_data_list[0] + tmp_data_list[1]
+		target_list = [0 for i in range(len(tmp_data_list[0]))] + [1 for i in range(len(tmp_data_list[1]))]
+		
+		# print 'len_click: %d, len_object: %d\n' % (len(tmp_data_list[0]), len(tmp_data_list[1]))
+		# print tmp_data_list[0]
+		# print tmp_data_list[1]
 		# try:
 		trained_model[site].fit(data_list, target_list)
 		# except Exception, e:
@@ -198,4 +212,4 @@ if __name__ == '__main__':
 	read_files_and_process()
 	train_classification_model()
 	dump_trained_model()
-	basic_test()
+	# basic_test()

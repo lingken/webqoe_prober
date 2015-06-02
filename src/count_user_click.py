@@ -33,7 +33,7 @@ def parse_lines(lines):
 
 	a_new_session = False
 	site_name = None
-	MAC = None
+	Info = None
 	visit_list = []
 	time_list = []
 
@@ -46,9 +46,11 @@ def parse_lines(lines):
 				if site_name not in click_record:
 					click_record[site_name] = []
 				try:
-					predicted = trained_model[site_name].predict(visit_list) # 0 - click, 1 - object
+					extract_url_list = [url_extractor.extract(full_url) for full_url in visit_list]
+					predicted = trained_model[site_name].predict(extract_url_list) # 0 - click, 1 - object
+					predicted[0] = 0
 					click_number = len(visit_list) - sum(predicted) # length - object
-					click_record[site_name].append('click_number: %d, time: %s - %s, MAC: %s' % (click_number, time_list[0], time_list[-1], MAC))
+					click_record[site_name].append('click_number: %d, time: %s - %s, Info: %s' % (click_number, time_list[0], time_list[-1], Info))
 
 					# output anomaly
 					if click_number >= 10:
@@ -76,7 +78,7 @@ def parse_lines(lines):
 
 			a_new_session = True
 			site_name = None
-			MAC = match.group(1)
+			Info = match.group(1)
 			visit_list = []
 			time_list = []
 			continue
@@ -94,7 +96,7 @@ def parse_lines(lines):
 						break
 			
 			time_list.append(timestamp)
-			visit_list.append(url_extractor.extract(url))
+			visit_list.append(url)
 
 	
 
@@ -121,5 +123,6 @@ def dump_record():
 
 if __name__ == '__main__':
 	read_models()
+	print trained_model['sina'].predict(['www.sina.com.cn', 'www.sohu.com.cn', 'sina', 'sohu'])
 	detect_user_click()
 	dump_record()

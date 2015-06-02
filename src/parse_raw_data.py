@@ -5,22 +5,12 @@ import os
 import pickle
 
 top_sites = {
-	# 'baidu', #1
 	'taobao', #2
 	'qq', #3
 	'sina', #4
 	'weibo', #5
 	'tmall', #6
-	# 'hao123', #7
-	# 'sohu', #8
-	# '360', #9
-	# 'tianya', #10
 	'amazon', #11
-	# 'xinhuanet', #12
-	# 'people', #13
-	# 'cntv', #14
-	# 'gmw', #15
-	# 'soso', #16
 	'163', #17
 	# 'chinadaily', #18
 	'jd', #19
@@ -67,6 +57,7 @@ class Session:
 		self.url_list = []
 		self.timestamp_list = []
 		self.MAC = 'NULL'
+		self.site = 'N/A'
 
 def parse_lines(lines, record_dict, session_list):
 	# c_miss = 0
@@ -102,6 +93,13 @@ def parse_lines(lines, record_dict, session_list):
 			new_ref = Host + GET
 			session.MAC = MAC
 			session.url_list.append(new_ref)
+
+			domain = new_ref.split('/')[0].split('.')
+			for item in domain:
+				if item in top_sites:
+					session.site = item
+					break
+
 			session.timestamp_list.append(timestamp)
 			session_list.append(session)
 			record_dict[MAC][User_Agent][new_ref] = session
@@ -118,7 +116,7 @@ def parse_lines(lines, record_dict, session_list):
 
 def print_all_record():
 	for session in session_list:
-		print 'a new session:'
+		print 'a new session: %s MAC: %s' % (session.site, session.MAC)
 		for timestamp, url in zip(session.timestamp_list, session.url_list):
 			print 'time: %s, url: %s' % (timestamp, url)
 		print
@@ -136,15 +134,19 @@ invalid_type_dict = {
 }
 # for this site, only url in this filter can it pass
 absolute_filter = {
-	'qq' : {'www.qq.com/', },
-	
+	'qq' : {'www.qq.com/', 'qzone.qq.com/', },
+
 }
 # for this site, if a url domain contains these words, it cannot be passed
 negative_filter = {
 	'163' : {'fs-', 'count', 'money', 'music', }, # money, music are useful url, however they are always session = 1
 	'sina': {'login', 'video', 'comment', 'dpool', 'js', },
 	'qq'  : {'dns', 'html5', 'short', },
+	# 'taobao': {'simba', 'svcstatus', 'm.taobao', 'err.', 'ip.taobao', 'ald.taobao', 'tui.taobao', 'allot-map', 'count.taobao', 'suggest.taobao', 'shoucang.taobao'},
 }
+# positive_filter = {
+# 	'taobao': 
+# }
 def pass_filter(site, url):
 	# decide if a url is the beginning of a session
 	match = re.match(regex_end_url, url)
@@ -156,6 +158,11 @@ def pass_filter(site, url):
 		for item in negative_filter[site]:
 			if url.find(item) >= 0:
 				return False
+	if site in absolute_filter:
+		if url in absolute_filter[site]:
+			return True
+		else:
+			return False
 	return True
 
 def write_session_record(session_list, router, file_time):
@@ -164,11 +171,14 @@ def write_session_record(session_list, router, file_time):
 	file_name = '../parsed_data/%s_%d.txt' % (router, file_time)
 	f_out = open(file_name, 'w')
 	for session in session_list:
+		# DANGER:
+		if len(session.url_list) == 1:
+			continue
 		# write out session here; I can separate different websites here
 		# generate session records by site
 		begin_url = session.url_list[0]
 		domain = begin_url.split('/')[0].split('.')
-		site = None
+		site = session.site
 
 		# calculate the keywords appeared in domain name
 		for keyword in domain:
@@ -176,12 +186,13 @@ def write_session_record(session_list, router, file_time):
 				domain_keyword_dict[keyword] = 0
 			domain_keyword_dict[keyword] = domain_keyword_dict[keyword] + 1
 
-		for item in domain:
-			if item in top_sites:
-				site = item
-				break;
+		# for item in domain:
+		# 	if item in top_sites:
+		# 		site = item
+		# 		break;
 		# categorize sessions by site
-		if site is not None:
+		# if site is not None:
+		if site != 'N/A':
 			# use the filter to process sites that belong to top_sites
 			if not pass_filter(site, begin_url):
 				continue
@@ -191,7 +202,7 @@ def write_session_record(session_list, router, file_time):
 			site_session_dict[site].append(session)
 
 		# add a filter here to remove obvious invalid url
-		f_out.write('a new session: %s\n' % session.MAC)
+		f_out.write('a new session: %s len: %d MAC: %s\n' % (session.site, len(session.url_list), session.MAC))
 		for timestamp, url in zip(session.timestamp_list, session.url_list):
 			f_out.write('time: %s, url: %s\n' % (timestamp, url))
 		f_out.write('\n')
@@ -203,7 +214,13 @@ def write_visit_by_site():
 		print site
 		f_out = open('../visit_by_site/%s.txt' % site, 'w')
 		for session in site_session_dict[site]:
-			f_out.write('a new session: %s\n' % session.MAC)
+
+
+			# DANGER:
+			# if len(session.url_list) == 1:
+			# 	continue
+
+			f_out.write('a new session: %s len: %d MAC: %s\n' % (session.site, len(session.url_list), session.MAC))
 			for timestamp, url in zip(session.timestamp_list, session.url_list):
 				f_out.write('time: %s, url: %s\n' % (timestamp, url))
 			f_out.write('\n')
