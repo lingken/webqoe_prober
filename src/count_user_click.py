@@ -54,6 +54,7 @@ def parse_lines(lines, AP_MAC):
 
 					# output anomaly
 					if click_number >= 10:
+						f_anomaly.write('click_number: %d, Info: %s AP_MAC: %s\n' % (click_number, Info, AP_MAC))
 						for i in range(len(predicted)):
 							if (predicted[i] == 0):
 								f_anomaly.write('time: %d, url: %s\n' % (time_list[i], visit_list[i]))
@@ -61,12 +62,14 @@ def parse_lines(lines, AP_MAC):
 						f_anomaly.write('\n')
 					
 					elif click_number == 1:
+						f_oneclick.write('click_number: %d, Info: %s AP_MAC: %s\n' % (click_number, Info, AP_MAC))
 						for i in range(len(predicted)):
 							if (predicted[i] == 0):
 								f_oneclick.write('time: %d, url: %s\n' % (time_list[i], visit_list[i]))
 								# print 'time: %d, url: %s\n' % (time_list[i], visit_list[i])
 						f_oneclick.write('\n')
 					elif click_number > 1 and click_number < 10:
+						f_fine.write('click_number: %d, Info: %s AP_MAC: %s\n' % (click_number, Info, AP_MAC))
 						for i in range(len(predicted)):
 							if (predicted[i] == 0):
 								f_fine.write('time: %d, url: %s\n' % (time_list[i], visit_list[i]))
