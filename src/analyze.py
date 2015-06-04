@@ -3,12 +3,13 @@ import re
 import os
 import sys
 import numpy
+from random import shuffle
 from scipy import stats
 from bisect import bisect
 from sklearn import tree
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.externals.six import StringIO
-
+import matplotlib.pyplot as plt
 result_path = '../result'
 
 top_sites = {
@@ -71,7 +72,7 @@ def get_wireless_record(line):
 	AP_MAC = 'NULL'
 
 	if match is None:
-		return None
+		return None, None
 
 	click_number = match.group(1);
 	start_time = match.group(2);
@@ -114,19 +115,19 @@ def get_wireless_record(line):
 	if not os.path.isdir(AP_file_path):
 		# print 'No such AP'
 		# print line
-		return None
+		return None, None
 	AP_file_list = os.listdir(AP_file_path)
 	# print AP_file_list
 	if ('station.txt' not in AP_file_list) or ('channel.txt' not in AP_file_list):
 		# print 'No station.txt or channel.txt'
 		# print line
-		return None
+		return None, None
 
 	channel_records = find_records('channel.txt', start_time, end_time, MAC, AP_MAC)
 	if (len(channel_records) == 0):
 		# print 'len(channel_records) == 0'
 		# print line
-		return None
+		return None, None
 	# channel: timestamp, active, busy, rx_time, tx_time
 	channel_start = channel_records[0].split(',')
 	channel_end = channel_records[-1].split(',')
@@ -134,12 +135,15 @@ def get_wireless_record(line):
 	if channel_duration == 0:
 		# print 'channel_duration == 0'
 		# print line
-		return None
-	channel_active = ((int)(channel_end[1]) - (int)(channel_start[1])) * 1.0 / channel_duration
+		return None, None
+	# channel_active = ((int)(channel_end[1]) - (int)(channel_start[1])) * 1.0 / channel_duration
 	channel_busy = ((int)(channel_end[2]) - (int)(channel_start[2])) * 1.0 / channel_duration
 	channel_rxtime = ((int)(channel_end[3]) - (int)(channel_start[3])) * 1.0 / channel_duration
 	channel_txtime = ((int)(channel_end[4]) - (int)(channel_start[4])) * 1.0 / channel_duration
-	channel_air_utilization = ((int)(channel_end[2]) - (int)(channel_start[2])) * 1.0 / ((int)(channel_end[1]) - (int)(channel_start[1]))
+	# channel_air_utilization = ((int)(channel_end[2]) - (int)(channel_start[2])) * 1.0 / ((int)(channel_end[1]) - (int)(channel_start[1]))
+	channel_air_utilization = (( ((int)(channel_end[2])) - ((int)(channel_end[3])) - ((int)(channel_end[4])) ) - ( ((int)(channel_start[2])) - ((int)(channel_start[3])) - ((int)(channel_start[4])) )) * 1.0 / ((int)(channel_end[1]) - (int)(channel_start[1]))
+	if ((channel_busy < 0) or (channel_rxtime < 0) or (channel_txtime < 0)):
+		return None, None
 
 	station_records = find_records('station.txt', start_time, end_time, MAC, AP_MAC)
 	# station: 0-timestamp, 1-devMAC, 2-receive_byte, 3-send_byte, 4-send_packet, 5-resend_packet, 6-signal, 7-send_phyrate, 8-receive_phyrate
@@ -167,28 +171,38 @@ def get_wireless_record(line):
 	if station_startindex < 0:
 		# print 'No Dev'
 		# print line
-		return None
+		return None, None
 
 	# IMPORTANT CONDITON to decide if add duration like station record
 	if station_startindex == station_endindex:
 		# print 'station_startindex == station_endindex'
 		# print line
-		return None
+		return None, None
 
 	station_start = station_records[station_startindex].split(',')
 	station_end = station_records[station_endindex].split(',')
-	station_duration = (int)(station_end[0]) - (int)(station_start[0])
+	station_duration = ((int)(station_end[0])) - ((int)(station_start[0]))
 	station_rxbyte = ((int)(station_end[2]) - (int)(station_start[2])) * 1.0 / station_duration
 	station_txbyte = ((int)(station_end[3]) - (int)(station_start[3])) * 1.0 / station_duration
 	station_send_packet = ((int)(station_end[4]) - (int)(station_start[4])) * 1.0 / station_duration
 	station_resend_packet = ((int)(station_end[5]) - (int)(station_start[5])) * 1.0 / station_duration
-
+	station_resend_ratio = ((int)(station_end[5]) - (int)(station_start[5])) * 1.0 / ((int)(station_end[4]) - (int)(station_start[4]))
+	if station_rxbyte < 0:
+		return None, None
+	if station_txbyte < 0:
+		return None, None
+	if station_send_packet < 0:
+		return None, None
+	if station_resend_packet < 0:
+		return None, None
 	station_record_number = 0
 	station_signal_strength = []
 	station_send_phyrate = 0
 	station_receive_phyrate = 0
 
+	all_dev = set()
 	for item in station_records:
+		all_dev.add(item.split(',')[1])
 		if item.find(DEV_MAC) < 0:
 			continue
 		tmp_station_record = item.split(',')
@@ -197,7 +211,7 @@ def get_wireless_record(line):
 		station_send_phyrate = station_send_phyrate + (float)(tmp_station_record[7])
 		station_receive_phyrate = station_receive_phyrate + (float)(tmp_station_record[8])
 
-	# station_signal_strength = station_signal_strength * 1.0 / station_record_number
+	statition_dev_number = len(all_dev)
 	station_signal_strength.sort()
 	station_signal_strength = station_signal_strength[len(station_signal_strength) / 2] # list to mid_value
 
@@ -207,19 +221,38 @@ def get_wireless_record(line):
 	# print 'channel - active: %f, busy: %f, rx_time: %f, tx_time: %f' % (channel_active, channel_busy, channel_rxtime, channel_txtime)
 	# print 'station - recByte: %f, sndByte: %f, sndPkt: %f, rsndPkt: %f, signal: %f, sndPhy: %f, recPhy: %f' % (station_rxbyte, station_txbyte, station_send_packet, station_resend_packet, station_signal_strength, station_send_phyrate, station_receive_phyrate)
 	rt = []
-	rt.append(channel_active) # 0
-	rt.append(channel_busy) # 1
+	feature_names = []
+	
+	# rt.append(channel_active)
+	# feature_names.append('channel_active')
+	rt.append(channel_busy)
+	feature_names.append('channel_busy')
 	rt.append(channel_air_utilization)
+	feature_names.append('channel_air_utilization')
 	rt.append(channel_rxtime)
+	feature_names.append('channel_rxtime')
 	rt.append(channel_txtime)
+	feature_names.append('channel_txtime')
 	rt.append(station_rxbyte)
+	feature_names.append('station_rxbyte')
 	rt.append(station_txbyte)
+	feature_names.append('station_txbyte')
 	rt.append(station_send_packet)
+	feature_names.append('station_send_packet')
 	rt.append(station_resend_packet)
+	feature_names.append('station_resend_packet')
 	rt.append(station_signal_strength)
+	feature_names.append('station_signal_strength')
 	rt.append(station_send_phyrate)
+	feature_names.append('station_send_phyrate')
 	rt.append(station_receive_phyrate)
-	return rt
+	feature_names.append('station_receive_phyrate')
+	rt.append(statition_dev_number)
+	feature_names.append('statition_dev_number')
+	rt.append(station_resend_ratio)
+	feature_names.append('station_resend_ratio')
+
+	return rt, feature_names
 
 regex_click_number = re.compile(r'click_number: (\d*),')	
 
@@ -232,6 +265,7 @@ def regress_data(lines, category_name):
 	global Omit_number
 	X = []
 	y = []
+	feature_names = []
 	for line in lines:
 		match = re.match(regex_click_number, line)
 		click_number = (int)(match.group(1))
@@ -242,15 +276,22 @@ def regress_data(lines, category_name):
 			Omit_number = Omit_number + 1
 			continue
 
-		wifipara = get_wireless_record(line)
+		wifipara, tmp = get_wireless_record(line)
+		if (tmp != None):
+			feature_names = tmp
 		if wifipara is not None:
 			# try to use regressor or classifier
-			if click_number <= 3:
+			# if click_number <= 3:
+			# 	y.append(0)
+			# elif click_number <= 7:
+			# 	y.append(1)
+			# else:
+			# 	y.append(2)
+
+			if click_number <= 1:
 				y.append(0)
-			elif click_number <= 7:
-				y.append(1)
 			else:
-				y.append(2)
+				y.append(1)
 			# y.append(click_number)
 
 			X.append(wifipara)
@@ -259,7 +300,30 @@ def regress_data(lines, category_name):
 			None_number = None_number + 1
 
 	# clf = DecisionTreeRegressor(max_depth = 3)
-	clf = tree.DecisionTreeClassifier(max_depth = 3, criterion='entropy')
+	clf = tree.DecisionTreeClassifier(max_depth=None, criterion='entropy', min_samples_leaf=1)
+	
+	# validate code
+	# combine = zip(X, y)
+	# correct_list = []
+	# pivot = int(0.9 * len(combine))
+	# for i in range(10):
+	# 	answer = []
+	# 	shuffle(combine)
+	# 	clf.fit([data[0] for data in combine[:pivot]], [data[1] for data in combine[:pivot]])
+	# 	predicted = clf.predict([data[0] for data in combine[pivot:]])
+	# 	for item in [data[1] for data in combine[pivot:]]:
+	# 		if item <= 1:
+	# 			answer.append(0)
+	# 		else:
+	# 			answer.append(1)
+	# 	rate = numpy.mean(predicted == answer)
+	# 	print rate
+	# 	correct_list.append(rate)
+
+	# print 'final avg: %f' % numpy.mean(correct_list)
+
+
+
 	clf.fit(X, y)
 
 	# # dump tree modle
@@ -269,7 +333,7 @@ def regress_data(lines, category_name):
 
 	# visualize
 	with open('%s/%s.dot' % (result_path, category_name), 'w') as f:
-		f = tree.export_graphviz(clf, out_file = f)
+		f = tree.export_graphviz(clf, out_file = f, feature_names=feature_names)
 	os.system('dot -Tpdf %s/%s.dot -o %s/%s.pdf' % (result_path, category_name, result_path, category_name))
 
 f_corrceof = open('%s/corrcoef.txt' % result_path, 'w')
@@ -277,6 +341,7 @@ def compute_correlation(lines, category_name):
 	print category_name
 	X = []
 	y = []
+	feature_names = []
 	for line in lines:
 		match = re.match(regex_click_number, line)
 		click_number = (int)(match.group(1))
@@ -285,15 +350,18 @@ def compute_correlation(lines, category_name):
 		if click_number > 20:
 			continue
 
-		wifipara = get_wireless_record(line)
+		wifipara, tmp = get_wireless_record(line)
+		if (tmp != None):
+			feature_names = tmp
 		if wifipara is not None:
 			# try to use regressor or classifier
 			y.append(click_number)
 			X.append(wifipara)
-
+	# print X
+	# print y
 	if len(X) == 0:
 		return
-	
+
 	para_number = len(X[0])
 	para_record = []
 	for i in range(para_number):
@@ -304,10 +372,16 @@ def compute_correlation(lines, category_name):
 	
 	corrcoef_list = []
 	result = ''
+	os.system('mkdir ../figure/%s' % category_name)
 	for i in range(para_number):
 		coef = stats.pearsonr(para_record[i], y)
 		corrcoef_list.append(coef)
 		result = result + '\t' + (str)(coef[0])
+		print feature_names[i]
+		plt.scatter(para_record[i], y)
+		# plt.show()
+		plt.savefig('../figure/%s/%s_%s.pdf' % (category_name, category_name, feature_names[i]))
+		plt.clf()
 	f_corrceof.write('%s\n' % category_name)
 	f_corrceof.write('%s\n' % result)
 
@@ -322,36 +396,70 @@ def aggregate_records():
 	portal_lines = portal_lines + read_records_of_a_site('sina')
 	portal_lines = portal_lines + read_records_of_a_site('163')
 	portal_lines = portal_lines + read_records_of_a_site('qq')
-	regress_data(portal_lines, 'portal')
+	# regress_data(portal_lines, 'portal')
+	compute_correlation(portal_lines, 'portal')
 
 	video_lines = []
 	video_lines = video_lines + read_records_of_a_site('bilibili')
 	video_lines = video_lines + read_records_of_a_site('acfun')
 	video_lines = video_lines + read_records_of_a_site('tudou')
 	video_lines = video_lines + read_records_of_a_site('youku')
-	regress_data(video_lines, 'video')
+	# regress_data(video_lines, 'video')
+	compute_correlation(video_lines, 'video')
 
 	shop_lines = []
 	shop_lines = shop_lines + read_records_of_a_site('amazon')
 	shop_lines = shop_lines + read_records_of_a_site('taobao')
 	shop_lines = shop_lines + read_records_of_a_site('tmall')
 	shop_lines = shop_lines + read_records_of_a_site('jd')
-	regress_data(shop_lines, 'shop')
+	# regress_data(shop_lines, 'shop')
+	compute_correlation(shop_lines, 'shop')
+
+	social_lines = []
+	social_lines = social_lines + read_records_of_a_site('weibo')
+	social_lines = social_lines + read_records_of_a_site('zhihu')
+	compute_correlation(social_lines, 'social')
 
 def statistical_analyze():
 	for site in top_sites:
 		site_lines = read_records_of_a_site(site)
 		compute_correlation(site_lines, site)
-		regress_data(site_lines, 'diverse_' + site)
+		# regress_data(site_lines, 'simple_' + site)
+		# regress_data(site_lines, 'diverse_' + site)
+		# regress_data(site_lines, 'regress_' + site)
+
+def statistic(category_name):
+	file_path = '../click_record/%s.txt' % (category_name)
+	f = open(file_path, 'r')
+	lines = f.readlines()
+	f.close()
+	click_number_list = []
+	for line in lines:
+		match = re.match(regex_click_number, line)
+		if match is None:
+			continue
+		click_number_list.append((int)(match.group(1)))
+	click_number_list.sort()
+	print click_number_list
+	print click_number_list[int(len(click_number_list) * 0.75)]
+	print numpy.mean(click_number_list)
 
 if __name__ == '__main__':
 	# get_wifidata_path_tree_ready()
 	# s = 'click_number: 1, time: 1433047054 - 1433047062, Info: qq len: 13 MAC: 68:df:dd:6a:5e:ef AP_MAC: 6CB0CE0FB50A'
 	# aggregate_records()
-	statistical_analyze()
-	print 'Line: %d, None: %d, Omit: %d\n' % (Line_number, None_number, Omit_number)
+	# statistical_analyze()
+	# print 'Line: %d, None: %d, Omit: %d\n' % (Line_number, None_number, Omit_number)
 
-	# site_lines = read_records_of_a_site('zhidao')
-	# compute_correlation(site_lines, 'zhidao')
+	# site_lines = read_records_of_a_site('acfun')
+	# compute_correlation(site_lines, 'acfun')
+
+	# regress_data(site_lines, 'weibo')
+
+	# statistic('weibo')
+	# site_lines = []
+	# for site in top_sites:
+		# site_lines = site_lines + read_records_of_a_site(site)
+	# compute_correlation(site_lines, 'all')
 
 	f_corrceof.close()
