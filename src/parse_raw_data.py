@@ -27,7 +27,7 @@ top_sites = {
 	# 'apple',
 	# 'tsinghua',
 	'youdao',
-	'wikipedia',
+	# 'wikipedia',
 	'acfun',
 	'bilibili',
 	'zhidao',

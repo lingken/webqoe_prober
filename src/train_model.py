@@ -22,7 +22,6 @@ top_sites = {
 	'tudou', #25
 	'zhihu',
 	'youdao',
-	'wikipedia',
 	'acfun',
 	'bilibili',
 	'zhidao',
