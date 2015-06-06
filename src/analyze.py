@@ -225,16 +225,16 @@ def get_wireless_record(line):
 	
 	# rt.append(channel_active)
 	# feature_names.append('channel_active')
-	rt.append(channel_busy)
-	feature_names.append('channel_busy')
+	# rt.append(channel_busy)
+	# feature_names.append('channel_busy')
 	rt.append(channel_air_utilization)
 	feature_names.append('channel_air_utilization')
-	rt.append(channel_rxtime)
-	feature_names.append('channel_rxtime')
+	# rt.append(channel_rxtime)
+	# feature_names.append('channel_rxtime')
 	rt.append(channel_txtime)
 	feature_names.append('channel_txtime')
-	rt.append(station_rxbyte)
-	feature_names.append('station_rxbyte')
+	# rt.append(station_rxbyte)
+	# feature_names.append('station_rxbyte')
 	rt.append(station_txbyte)
 	feature_names.append('station_txbyte')
 	rt.append(station_send_packet)
@@ -243,18 +243,42 @@ def get_wireless_record(line):
 	feature_names.append('station_resend_packet')
 	rt.append(station_signal_strength)
 	feature_names.append('station_signal_strength')
-	rt.append(station_send_phyrate)
-	feature_names.append('station_send_phyrate')
-	rt.append(station_receive_phyrate)
-	feature_names.append('station_receive_phyrate')
-	rt.append(statition_dev_number)
-	feature_names.append('statition_dev_number')
-	rt.append(station_resend_ratio)
-	feature_names.append('station_resend_ratio')
+	# rt.append(station_send_phyrate)
+	# feature_names.append('station_send_phyrate')
+	# rt.append(station_receive_phyrate)
+	# feature_names.append('station_receive_phyrate')
+	# rt.append(statition_dev_number)
+	# feature_names.append('statition_dev_number')
+	# rt.append(station_resend_ratio)
+	# feature_names.append('station_resend_ratio')
 
 	return rt, feature_names
 
 regex_click_number = re.compile(r'click_number: (\d*),')	
+
+def statistic(lines):
+	click_number_list = []
+	for line in lines:
+		match = re.match(regex_click_number, line)
+		if match is None:
+			continue
+		click_number = (int)(match.group(1))
+		if click_number > 20 or click_number <= 1:
+			continue
+		click_number_list.append(click_number)
+	click_number_list.sort()
+	print click_number_list
+	# print click_number_list[int(len(click_number_list) * 0.75)]
+	# print numpy.mean(click_number_list)
+	n_category_0 = 0
+	n_category_1 = 0
+	key = 3
+	for item in click_number_list:
+		if item <= key:
+			n_category_0 = n_category_0 + 1
+		else:
+			n_category_1 = n_category_1 + 1
+	print 'session_legnth <= %d: %f, session_legnth > %d: %f\n' % (key, n_category_0 * 1.0 / len(click_number_list), key, n_category_1 * 1.0 / len(click_number_list))
 
 Line_number = 0
 None_number = 0
@@ -272,7 +296,7 @@ def regress_data(lines, category_name):
 		Line_number = Line_number + 1
 
 		# get rid of dirty data
-		if click_number > 20:
+		if click_number > 20 or click_number <= 1:
 			Omit_number = Omit_number + 1
 			continue
 
@@ -288,7 +312,7 @@ def regress_data(lines, category_name):
 			# else:
 			# 	y.append(2)
 
-			if click_number <= 1:
+			if click_number <= 3:
 				y.append(0)
 			else:
 				y.append(1)
@@ -300,28 +324,28 @@ def regress_data(lines, category_name):
 			None_number = None_number + 1
 
 	# clf = DecisionTreeRegressor(max_depth = 3)
-	clf = tree.DecisionTreeClassifier(max_depth=None, criterion='entropy', min_samples_leaf=1)
+	clf = tree.DecisionTreeClassifier(max_depth=None, criterion='gini', min_samples_leaf=1)
 	
 	# validate code
-	# combine = zip(X, y)
-	# correct_list = []
-	# pivot = int(0.9 * len(combine))
-	# for i in range(10):
-	# 	answer = []
-	# 	shuffle(combine)
-	# 	clf.fit([data[0] for data in combine[:pivot]], [data[1] for data in combine[:pivot]])
-	# 	predicted = clf.predict([data[0] for data in combine[pivot:]])
-	# 	for item in [data[1] for data in combine[pivot:]]:
-	# 		if item <= 1:
-	# 			answer.append(0)
-	# 		else:
-	# 			answer.append(1)
-	# 	rate = numpy.mean(predicted == answer)
-	# 	print rate
-	# 	correct_list.append(rate)
+	combine = zip(X, y)
+	correct_list = []
+	pivot = int(0.9 * len(combine))
+	for i in range(1000):
+		answer = []
+		shuffle(combine)
+		clf.fit([data[0] for data in combine[:pivot]], [data[1] for data in combine[:pivot]])
+		predicted = clf.predict([data[0] for data in combine[pivot:]])
+		for item in [data[1] for data in combine[pivot:]]:
+			if item <= 3:
+				answer.append(0)
+			else:
+				answer.append(1)
+		rate = numpy.mean(predicted == answer)
+		# print rate
+		correct_list.append(rate)
 
-	# print 'final avg: %f' % numpy.mean(correct_list)
-
+	print 'final avg: %f' % numpy.mean(correct_list)
+	statistic(lines)
 
 
 	clf.fit(X, y)
@@ -392,33 +416,34 @@ def read_records_of_a_site(site_name):
 	return lines
 
 def aggregate_records():
-	portal_lines = []
-	portal_lines = portal_lines + read_records_of_a_site('sina')
-	portal_lines = portal_lines + read_records_of_a_site('163')
-	portal_lines = portal_lines + read_records_of_a_site('qq')
-	# regress_data(portal_lines, 'portal')
-	compute_correlation(portal_lines, 'portal')
+	# portal_lines = []
+	# portal_lines = portal_lines + read_records_of_a_site('sina')
+	# portal_lines = portal_lines + read_records_of_a_site('163')
+	# portal_lines = portal_lines + read_records_of_a_site('qq')
+	# # regress_data(portal_lines, 'portal')
+	# compute_correlation(portal_lines, 'portal')
 
-	video_lines = []
-	video_lines = video_lines + read_records_of_a_site('bilibili')
-	video_lines = video_lines + read_records_of_a_site('acfun')
-	video_lines = video_lines + read_records_of_a_site('tudou')
-	video_lines = video_lines + read_records_of_a_site('youku')
-	# regress_data(video_lines, 'video')
-	compute_correlation(video_lines, 'video')
+	# video_lines = []
+	# video_lines = video_lines + read_records_of_a_site('bilibili')
+	# video_lines = video_lines + read_records_of_a_site('acfun')
+	# video_lines = video_lines + read_records_of_a_site('tudou')
+	# video_lines = video_lines + read_records_of_a_site('youku')
+	# # regress_data(video_lines, 'video')
+	# compute_correlation(video_lines, 'video')
 
-	shop_lines = []
-	shop_lines = shop_lines + read_records_of_a_site('amazon')
-	shop_lines = shop_lines + read_records_of_a_site('taobao')
-	shop_lines = shop_lines + read_records_of_a_site('tmall')
-	shop_lines = shop_lines + read_records_of_a_site('jd')
-	# regress_data(shop_lines, 'shop')
-	compute_correlation(shop_lines, 'shop')
+	# shop_lines = []
+	# shop_lines = shop_lines + read_records_of_a_site('amazon')
+	# shop_lines = shop_lines + read_records_of_a_site('taobao')
+	# shop_lines = shop_lines + read_records_of_a_site('tmall')
+	# shop_lines = shop_lines + read_records_of_a_site('jd')
+	# # regress_data(shop_lines, 'shop')
+	# compute_correlation(shop_lines, 'shop')
 
 	social_lines = []
 	social_lines = social_lines + read_records_of_a_site('weibo')
 	social_lines = social_lines + read_records_of_a_site('zhihu')
-	compute_correlation(social_lines, 'social')
+	regress_data(social_lines, 'social')
+	# compute_correlation(social_lines, 'social')
 
 def statistical_analyze():
 	for site in top_sites:
@@ -428,26 +453,10 @@ def statistical_analyze():
 		# regress_data(site_lines, 'diverse_' + site)
 		# regress_data(site_lines, 'regress_' + site)
 
-def statistic(category_name):
-	file_path = '../click_record/%s.txt' % (category_name)
-	f = open(file_path, 'r')
-	lines = f.readlines()
-	f.close()
-	click_number_list = []
-	for line in lines:
-		match = re.match(regex_click_number, line)
-		if match is None:
-			continue
-		click_number_list.append((int)(match.group(1)))
-	click_number_list.sort()
-	print click_number_list
-	print click_number_list[int(len(click_number_list) * 0.75)]
-	print numpy.mean(click_number_list)
-
 if __name__ == '__main__':
 	# get_wifidata_path_tree_ready()
 	# s = 'click_number: 1, time: 1433047054 - 1433047062, Info: qq len: 13 MAC: 68:df:dd:6a:5e:ef AP_MAC: 6CB0CE0FB50A'
-	# aggregate_records()
+	aggregate_records()
 	# statistical_analyze()
 	# print 'Line: %d, None: %d, Omit: %d\n' % (Line_number, None_number, Omit_number)
 
