@@ -39,13 +39,13 @@ def process_data():
 				except IOError, e:
 					pass
 
-		os.system('mkdir ../wifidata/%s' % router)
+		os.system('mkdir ../wifidata_lk/%s' % router)
 		for i in range(len(router_record_list)):
 			router_record_list[i] = list(set(router_record_list[i]))
 			router_record_list[i].sort()
 
 			if (len(router_record_list[i]) > 0):
-				new_file_path = '../wifidata/%s/%s.txt' % (router, file_name_list[i])
+				new_file_path = '../wifidata_lk/%s/%s.txt' % (router, file_name_list[i])
 				f = open(new_file_path, 'w')
 				for line in router_record_list[i]:
 					f.write(line)

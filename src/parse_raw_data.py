@@ -194,6 +194,7 @@ def write_session_record(session_list, router, file_time):
 		# if site is not None:
 		if site != 'N/A':
 			# use the filter to process sites that belong to top_sites
+			
 			if not pass_filter(site, begin_url):
 				continue
 
