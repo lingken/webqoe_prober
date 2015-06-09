@@ -242,8 +242,8 @@ def get_wireless_record(line):
 	return rt, feature_names
 
 def omit_click_number(click_number):
-	if click_number <= 1 or click_number > 20:
-	# if click_number > 20:
+	# if click_number <= 1 or click_number > 20:
+	if click_number > 20:
 		return True # omit
 	else:
 		return False # useful
@@ -294,14 +294,19 @@ def process_data(lines, category_name):
 		if omit_click_number(click_number):
 			Omit_number = Omit_number + 1
 			continue
-		y.append(click_number)
 		wifi_data, rt = get_wireless_record(line)	
+		if wifi_data is None:
+			None_number = None_number + 1
+			continue
 		if rt is not None: # get_wireless_record may return None, None
 			feature_names = rt
 		X.append(wifi_data)
+		y.append(click_number)
 	print 'process data: %s, original_data: %d, omit: %d, none: %d' % (category_name, Line_number, Omit_number, None_number)
 
 	# different procedures to process data
+	# plot_confidence_interval(X, y, category_name, feature_names)
+	# scatter_plot(X, y, category_name, feature_names)
 
 def regress_data(wifi_data_list, click_number_list, category_name, feature_names):
 	X = wifi_data_list
@@ -358,12 +363,18 @@ def bin_data(univariate_x, y, bins):
 	combine = zip(univariate_x, y)
 	combine.sort(key = lambda t: t[0])
 	# bin之后的x对应一个y的列表
-	step = (combine[-1][0] - combine[0][0]) / bins
+	combine = combine[int(len(combine) * 0.05) : int(len(combine) * 0.95)]
+	step = (combine[-1][0] - combine[0][0]) * 1.0 / bins
 	basket = []
-	for i in range(bins + 1):
+	print combine[-1][0]
+	print combine[0][0]
+	print step
+	print '------------'
+	for i in range(bins + 2):
 		basket.append([])
 	for item in combine:
-		index = (item[0] - combine[0][0]) / step
+		index = int((item[0] - combine[0][0]) / step)
+
 		basket[index].append(item[1])
 	
 	rt_X = []
@@ -375,9 +386,23 @@ def bin_data(univariate_x, y, bins):
 			# rt_X.append(combine[0][0] + (i * 1.0 + 0.5) * step)
 	return rt_X, rt_Y
 
-def confidence_interval(wifi_data_list, click_number_list, category_name, feature_names):
+def plot_confidence_interval(wifi_data_list, click_number_list, category_name, feature_names):
+	para_number = len(wifi_data_list[0])
+	para_record = []
+	for i in range(para_number):
+		para_record.append([])
+	for item in wifi_data_list:
+		for i in range(para_number):
+			para_record[i].append(item[i])
 
+	for i in range(para_number):
+		rt_X, rt_Y = bin_data(para_record[i], click_number_list, 10)
 
+		for j in range(len(rt_X)):
+			for item in rt_Y[j]:
+				plt.scatter(rt_X[j], item)
+		plt.savefig('../figure/confident_interval_%s_%s.pdf' % (category_name, feature_names[i]))
+		plt.clf()
 
 # f_corrceof = open('%s/corrcoef.txt' % result_path, 'w')
 def compute_pearson_correlation(wifi_data_list, click_number_list, category_name, feature_names):
@@ -411,7 +436,14 @@ def scatter_plot(wifi_data_list, click_number_list, category_name, feature_names
 			para_record[i].append(item[i])
 	os.system('mkdir ../figure/%s' % category_name)
 	for i in range(para_number):
-		plt.scatter(para_record[i], y)
+		
+		# tmp = zip(para_record[i], click_number_list)
+		# tmp.sort(key = lambda t: t[0])
+		# s_index = int(len(tmp) * 0.05)
+		# t_index = int(len(tmp) * 0.95)
+		# tmp = tmp[s_index : t_index]
+		# plt.scatter([data[0] for data in tmp], [data[1] for data in tmp])
+		plt.scatter(para_record[i], click_number_list)
 		plt.savefig('../figure/%s/%s_%s.pdf' % (category_name, category_name, feature_names[i]))
 		plt.clf()
 
@@ -446,13 +478,9 @@ def traverse_analyze():
 
 
 if __name__ == '__main__':
-	x = [0, 1, 1, 2, 4, 5, 6, 6, 6, 7, 8, 3, 2, 10, 10, 10]
-	y = [1, 2, 1, 3, 5, 1, 6, 1, 2, 1, 9, 10, 10, 1, 2, 3]
-	rt_X, rt_Y = bin_data(x, y, 10)
-	print rt_X
-	print rt_Y
-	# site_lines = []
-	# for site in top_sites:
-	# 	site_lines = site_lines + read_records_of_a_site(site)
+	site_lines = []
+	for site in top_sites:
+		site_lines = site_lines + read_records_of_a_site(site)
+	process_data(site_lines, 'all')
 
 	# f_corrceof.close()
