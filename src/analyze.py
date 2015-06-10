@@ -31,6 +31,24 @@ top_sites = {
 	# 'zhidao',
 }
 
+feature_names = [
+	'channel_active',
+	'channel_busy',
+	'channel_air_utilization',
+	'channel_rxtime',
+	'channel_txtime',
+	'station_rxbyte',
+	'station_txbyte',
+	'station_send_packet',
+	'station_resend_packet',
+	'station_signal_strength',
+	'station_send_phyrate',
+	'station_receive_phyrate',
+	'statition_dev_number',
+	'station_resend_ratio',
+]
+feature_dict = {}
+
 starttime_list = []
 
 # read click record of a site
@@ -86,7 +104,7 @@ def get_wireless_record(line):
 	AP_MAC = 'NULL'
 
 	if match is None:
-		return None, None
+		return None
 
 	click_number = match.group(1);
 	start_time = match.group(2);
@@ -100,19 +118,19 @@ def get_wireless_record(line):
 	if not os.path.isdir(AP_file_path):
 		# print 'No such AP'
 		# print line
-		return None, None
+		return None
 	AP_file_list = os.listdir(AP_file_path)
 	# print AP_file_list
 	if ('station.txt' not in AP_file_list) or ('channel.txt' not in AP_file_list):
 		# print 'No station.txt or channel.txt'
 		# print line
-		return None, None
+		return None
 
 	channel_records = find_records('channel.txt', start_time, end_time, MAC, AP_MAC)
 	if (len(channel_records) == 0):
 		# print 'len(channel_records) == 0'
 		# print line
-		return None, None
+		return None
 	# channel: timestamp, active, busy, rx_time, tx_time
 	channel_start = channel_records[0].split(',')
 	channel_end = channel_records[-1].split(',')
@@ -120,15 +138,15 @@ def get_wireless_record(line):
 	if channel_duration == 0:
 		# print 'channel_duration == 0'
 		# print line
-		return None, None
-	# channel_active = ((int)(channel_end[1]) - (int)(channel_start[1])) * 1.0 / channel_duration
+		return None
+	channel_active = ((int)(channel_end[1]) - (int)(channel_start[1])) * 1.0 / channel_duration
 	channel_busy = ((int)(channel_end[2]) - (int)(channel_start[2])) * 1.0 / channel_duration
 	channel_rxtime = ((int)(channel_end[3]) - (int)(channel_start[3])) * 1.0 / channel_duration
 	channel_txtime = ((int)(channel_end[4]) - (int)(channel_start[4])) * 1.0 / channel_duration
 	# channel_air_utilization = ((int)(channel_end[2]) - (int)(channel_start[2])) * 1.0 / ((int)(channel_end[1]) - (int)(channel_start[1]))
 	channel_air_utilization = (( ((int)(channel_end[2])) - ((int)(channel_end[3])) - ((int)(channel_end[4])) ) - ( ((int)(channel_start[2])) - ((int)(channel_start[3])) - ((int)(channel_start[4])) )) * 1.0 / ((int)(channel_end[1]) - (int)(channel_start[1]))
 	if ((channel_busy < 0) or (channel_rxtime < 0) or (channel_txtime < 0)):
-		return None, None
+		return None
 
 	station_records = find_records('station.txt', start_time, end_time, MAC, AP_MAC)
 	# station: 0-timestamp, 1-devMAC, 2-receive_byte, 3-send_byte, 4-send_packet, 5-resend_packet, 6-signal, 7-send_phyrate, 8-receive_phyrate
@@ -156,13 +174,13 @@ def get_wireless_record(line):
 	if station_startindex < 0:
 		# print 'No Dev'
 		# print line
-		return None, None
+		return None
 
 	# IMPORTANT CONDITON to decide if add duration like station record
 	if station_startindex == station_endindex:
 		# print 'station_startindex == station_endindex'
 		# print line
-		return None, None
+		return None
 
 	station_start = station_records[station_startindex].split(',')
 	station_end = station_records[station_endindex].split(',')
@@ -173,13 +191,13 @@ def get_wireless_record(line):
 	station_resend_packet = ((int)(station_end[5]) - (int)(station_start[5])) * 1.0 / station_duration
 	station_resend_ratio = ((int)(station_end[5]) - (int)(station_start[5])) * 1.0 / ((int)(station_end[4]) - (int)(station_start[4]))
 	if station_rxbyte < 0:
-		return None, None
+		return None
 	if station_txbyte < 0:
-		return None, None
+		return None
 	if station_send_packet < 0:
-		return None, None
+		return None
 	if station_resend_packet < 0:
-		return None, None
+		return None
 	station_record_number = 0
 	station_signal_strength = []
 	station_send_phyrate = 0
@@ -204,42 +222,37 @@ def get_wireless_record(line):
 	station_receive_phyrate = station_receive_phyrate * 1.0 / station_record_number
 
 	rt = []
-	feature_names = []
 	
-	rt.append(channel_busy)
-	feature_names.append('channel_busy')
+	if 'channel_active' in feature_dict:
+		rt.append(channel_active)
+	if 'channel_busy' in feature_dict:
+		rt.append(channel_busy)
+	if 'channel_air_utilization' in feature_dict:
+		rt.append(channel_air_utilization)
+	if 'channel_rxtime' in feature_dict:
+		rt.append(channel_rxtime)
+	if 'channel_txtime' in feature_dict:
+		rt.append(channel_txtime)
+	if 'station_rxbyte' in feature_dict:
+		rt.append(station_rxbyte)
+	if 'station_txbyte' in feature_dict:
+		rt.append(station_txbyte)
+	if 'station_send_packet' in feature_dict:
+		rt.append(station_send_packet)
+	if 'station_resend_packet' in feature_dict:
+		rt.append(station_resend_packet)
+	if 'station_signal_strength' in feature_dict:
+		rt.append(station_signal_strength)
+	if 'station_send_phyrate' in feature_dict:
+		rt.append(station_send_phyrate)
+	if 'station_receive_phyrate' in feature_dict:
+		rt.append(station_receive_phyrate)
+	if 'statition_dev_number' in feature_dict:
+		rt.append(statition_dev_number)
+	if 'station_resend_ratio' in feature_dict:
+		rt.append(station_resend_ratio)
 
-	rt.append(channel_air_utilization)
-	feature_names.append('channel_air_utilization')
-
-	rt.append(channel_rxtime)
-	feature_names.append('channel_rxtime')
-
-	rt.append(channel_txtime)
-	feature_names.append('channel_txtime')
-
-	rt.append(station_rxbyte)
-	feature_names.append('station_rxbyte')
-
-	rt.append(station_txbyte)
-	feature_names.append('station_txbyte')
-	rt.append(station_send_packet)
-	feature_names.append('station_send_packet')
-	rt.append(station_resend_packet)
-	feature_names.append('station_resend_packet')
-	rt.append(station_signal_strength)
-	feature_names.append('station_signal_strength')
-
-	rt.append(station_send_phyrate)
-	feature_names.append('station_send_phyrate')
-	rt.append(station_receive_phyrate)
-	feature_names.append('station_receive_phyrate')
-	rt.append(statition_dev_number)
-	feature_names.append('statition_dev_number')
-	rt.append(station_resend_ratio)
-	feature_names.append('station_resend_ratio')
-
-	return rt, feature_names
+	return rt
 
 def omit_click_number(click_number):
 	# if click_number <= 1 or click_number > 20:
@@ -283,7 +296,6 @@ def process_data(lines, category_name):
 	None_number = 0
 	X = []
 	y = []
-	feature_names = []
 
 	for line in lines:
 		match = re.match(regex_click_number, line)
@@ -300,23 +312,21 @@ def process_data(lines, category_name):
 		if wifi_data is None:
 			None_number = None_number + 1
 			continue
-		if rt is not None: # get_wireless_record may return None, None
-			feature_names = rt
 		X.append(wifi_data)
 		y.append(click_number)
 	Valid_number = Line_number - Omit_number - None_number
 	print 'process data: %s, valid_data: %d, original_data: %d, omit: %d, none: %d' % (category_name, Valid_number, Line_number, Omit_number, None_number)
 
 	# different procedures to process data
-	# plot_confidence_interval(X, y, category_name, feature_names)
-	# scatter_plot(X, y, category_name, feature_names)
-	kendall_result = compute_kendall_correlation(X, y, category_name, feature_names)
-	# compute_relative_information_gain(X, y, category_name, feature_names)
+	# plot_confidence_interval(X, y, category_name)
+	# scatter_plot(X, y, category_name)
+	kendall_result = compute_kendall_correlation(X, y, category_name)
+	# compute_relative_information_gain(X, y, category_name)
 	print kendall_result
 	kendall_record.append([kendall_result, Valid_number])
 
 
-def regress_data(wifi_data_list, click_number_list, category_name, feature_names):
+def regress_data(wifi_data_list, click_number_list, category_name):
 	X = wifi_data_list
 	sorted_click_number_list = sorted(click_number_list)
 	median = sorted_click_number_list(len(sorted_click_number_list) / 2)
@@ -396,7 +406,7 @@ def bin_data(univariate_x, y, bins):
 			# rt_X.append(combine[0][0] + (i * 1.0 + 0.5) * step)
 	return rt_X, rt_Y
 
-def plot_confidence_interval(wifi_data_list, click_number_list, category_name, feature_names):
+def plot_confidence_interval(wifi_data_list, click_number_list, category_name):
 	para_number = len(wifi_data_list[0])
 	para_record = []
 	for i in range(para_number):
@@ -415,7 +425,7 @@ def plot_confidence_interval(wifi_data_list, click_number_list, category_name, f
 		plt.clf()
 
 # f_corrceof = open('%s/corrcoef.txt' % result_path, 'w')
-def compute_pearson_correlation(wifi_data_list, click_number_list, category_name, feature_names):
+def compute_pearson_correlation(wifi_data_list, click_number_list, category_name):
 	para_number = len(wifi_data_list[0])
 	para_record = []
 	for i in range(para_number):
@@ -436,7 +446,7 @@ def compute_pearson_correlation(wifi_data_list, click_number_list, category_name
 	# f_corrceof.write('%s\n' % category_name)
 	# f_corrceof.write('%s\n' % result)
 
-def compute_kendall_correlation(wifi_data_list, click_number_list, category_name, feature_names):
+def compute_kendall_correlation(wifi_data_list, click_number_list, category_name):
 	para_number = len(wifi_data_list[0])
 	para_record = []
 	for i in range(para_number):
@@ -469,7 +479,7 @@ def compute_kendall_correlation(wifi_data_list, click_number_list, category_name
 	print max([abs(t) for t in corrcoef_list])
 	return corrcoef_list
 
-def compute_relative_information_gain(wifi_data_list, click_number_list, category_name, feature_names):
+def compute_relative_information_gain(wifi_data_list, click_number_list, category_name):
 	print 'relative information gain'
 	para_number = len(wifi_data_list[0])
 	para_record = []
@@ -502,7 +512,7 @@ def compute_relative_information_gain(wifi_data_list, click_number_list, categor
 	print max([abs(t) for t in corrcoef_list])
 	return corrcoef_list
 
-def scatter_plot(wifi_data_list, click_number_list, category_name, feature_names):
+def scatter_plot(wifi_data_list, click_number_list, category_name):
 	para_number = len(wifi_data_list[0])
 	para_record = []
 	for i in range(para_number):
@@ -569,7 +579,13 @@ def accumulate():
 	plt.savefig('../figure/kendall_cdf/aggregate.pdf')
 	plt.clf()
 
+def initialize():
+	for i in range(len(feature_names)):
+		feature_dict[feature_names] = i
+
 if __name__ == '__main__':
+	initialize()
+
 	# site_lines = []
 	# for site in top_sites:
 		# site_lines = site_lines + read_records_of_a_site(site)
