@@ -276,6 +276,7 @@ def statistic_info(lines, median):
 	print 'session_legnth <= %d: %f, session_legnth > %d: %f' % (key, n_category_0 * 1.0 / len(click_number_list), key, n_category_1 * 1.0 / len(click_number_list))
 	print 'median: %d' % click_number_list[len(click_number_list) / 2]
 
+kendall_record = []
 def process_data(lines, category_name):
 	Line_number = 0
 	Omit_number = 0
@@ -283,6 +284,7 @@ def process_data(lines, category_name):
 	X = []
 	y = []
 	feature_names = []
+
 	for line in lines:
 		match = re.match(regex_click_number, line)
 		if match is None:
@@ -302,13 +304,17 @@ def process_data(lines, category_name):
 			feature_names = rt
 		X.append(wifi_data)
 		y.append(click_number)
-	print 'process data: %s, valid_data: %d, original_data: %d, omit: %d, none: %d' % (category_name, (Line_number - None_number - Omit_number), Line_number, Omit_number, None_number)
+	Valid_number = Line_number - Omit_number - None_number
+	print 'process data: %s, valid_data: %d, original_data: %d, omit: %d, none: %d' % (category_name, Valid_number, Line_number, Omit_number, None_number)
 
 	# different procedures to process data
 	# plot_confidence_interval(X, y, category_name, feature_names)
 	# scatter_plot(X, y, category_name, feature_names)
-	# print compute_kendall_correlation(X, y, category_name, feature_names)
-	print compute_relative_information_gain(X, y, category_name, feature_names)
+	kendall_result = compute_kendall_correlation(X, y, category_name, feature_names)
+	# compute_relative_information_gain(X, y, category_name, feature_names)
+	print kendall_result
+	kendall_record.append([kendall_result, Valid_number])
+
 
 def regress_data(wifi_data_list, click_number_list, category_name, feature_names):
 	X = wifi_data_list
@@ -446,10 +452,16 @@ def compute_kendall_correlation(wifi_data_list, click_number_list, category_name
 		rt_X, rt_Y = bin_data(para_record[i], click_number_list, 10)
 		final_X = []
 		final_Y = []
-		for j in range(len(rt_X)):
-			for item in rt_Y[j]:
-				final_X.append(rt_X[j])
-				final_Y.append(item)
+
+		# for j in range(len(rt_X)):
+			# for item in rt_Y[j]:
+				# final_X.append(rt_X[j])
+				# final_Y.append(item)
+
+		# calculate average for each bin
+		final_X = rt_X
+		for item in rt_Y:
+			final_Y.append(numpy.mean(item))
 		coef, p_value = stats.kendalltau(final_X, final_Y)
 		corrcoef_list.append(coef)
 		result = result + '\t' + (str)(coef)
@@ -543,6 +555,19 @@ def traverse_analyze():
 		site_lines = read_records_of_a_site(site)
 		process_data(site_lines, site)
 
+def accumulate():
+	para_number = len(kendall_record[0][0])
+	for i in range(para_number):
+		origin_X = []
+		for record in kendall_record:
+			for k in range(record[1]):
+				origin_X.append(record[0][i])
+		X, Y = compute_cdf(origin_X)
+		plt.plot(X, Y)
+		# plt.savefig('../figure/kendall_cdf/%d.pdf' % i)
+		# plt.clf()
+	plt.savefig('../figure/kendall_cdf/aggregate.pdf')
+	plt.clf()
 
 if __name__ == '__main__':
 	# site_lines = []
@@ -551,4 +576,5 @@ if __name__ == '__main__':
 	# process_data(site_lines, 'all')
 	# aggregate_records()
 	traverse_analyze()
+	accumulate()
 	# f_corrceof.close()
