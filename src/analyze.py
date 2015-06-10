@@ -6,20 +6,20 @@ import sys
 import numpy
 from random import shuffle
 from scipy import stats
+from sklearn import metrics
 from bisect import bisect
-from sklearn import tree
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.externals.six import StringIO
+# from sklearn import tree
+# from sklearn.tree import DecisionTreeRegressor
 import matplotlib.pyplot as plt
 result_path = '../result'
 
 top_sites = {
 	'taobao', #2
-	'qq', #3
+	# 'qq', #3
 	'sina', #4
 	'weibo', #5
 	'tmall', #6
-	'amazon', #11
+	# 'amazon', #11
 	'163', #17
 	'jd', #19
 	'youku', #20
@@ -28,7 +28,7 @@ top_sites = {
 	'youdao',
 	'acfun',
 	'bilibili',
-	'zhidao',
+	# 'zhidao',
 }
 
 starttime_list = []
@@ -302,11 +302,13 @@ def process_data(lines, category_name):
 			feature_names = rt
 		X.append(wifi_data)
 		y.append(click_number)
-	print 'process data: %s, original_data: %d, omit: %d, none: %d' % (category_name, Line_number, Omit_number, None_number)
+	print 'process data: %s, valid_data: %d, original_data: %d, omit: %d, none: %d' % (category_name, (Line_number - None_number - Omit_number), Line_number, Omit_number, None_number)
 
 	# different procedures to process data
 	# plot_confidence_interval(X, y, category_name, feature_names)
 	# scatter_plot(X, y, category_name, feature_names)
+	# print compute_kendall_correlation(X, y, category_name, feature_names)
+	print compute_relative_information_gain(X, y, category_name, feature_names)
 
 def regress_data(wifi_data_list, click_number_list, category_name, feature_names):
 	X = wifi_data_list
@@ -363,13 +365,15 @@ def bin_data(univariate_x, y, bins):
 	combine = zip(univariate_x, y)
 	combine.sort(key = lambda t: t[0])
 	# bin之后的x对应一个y的列表
+	# use data with outliers omitted
 	combine = combine[int(len(combine) * 0.05) : int(len(combine) * 0.95)]
+
 	step = (combine[-1][0] - combine[0][0]) * 1.0 / bins
 	basket = []
-	print combine[-1][0]
-	print combine[0][0]
-	print step
-	print '------------'
+	# print combine[-1][0]
+	# print combine[0][0]
+	# print step
+	# print '------------'
 	for i in range(bins + 2):
 		basket.append([])
 	for item in combine:
@@ -418,13 +422,73 @@ def compute_pearson_correlation(wifi_data_list, click_number_list, category_name
 	result = ''
 
 	for i in range(para_number):
-		coef = stats.pearsonr(para_record[i], y)
+		coef, p_value = stats.pearsonr(para_record[i], click_number_list)
 		corrcoef_list.append(coef)
-		result = result + '\t' + (str)(coef[0])
+		result = result + '\t' + (str)(coef)
 		# print feature_names[i]
 	return corrcoef_list
 	# f_corrceof.write('%s\n' % category_name)
 	# f_corrceof.write('%s\n' % result)
+
+def compute_kendall_correlation(wifi_data_list, click_number_list, category_name, feature_names):
+	para_number = len(wifi_data_list[0])
+	para_record = []
+	for i in range(para_number):
+		para_record.append([])
+	for item in wifi_data_list:
+		for i in range(para_number):
+			para_record[i].append(item[i])
+	
+	corrcoef_list = []
+	result = ''
+
+	for i in range(para_number):
+		rt_X, rt_Y = bin_data(para_record[i], click_number_list, 10)
+		final_X = []
+		final_Y = []
+		for j in range(len(rt_X)):
+			for item in rt_Y[j]:
+				final_X.append(rt_X[j])
+				final_Y.append(item)
+		coef, p_value = stats.kendalltau(final_X, final_Y)
+		corrcoef_list.append(coef)
+		result = result + '\t' + (str)(coef)
+		# print feature_names[i]
+	print max([abs(t) for t in corrcoef_list])
+	return corrcoef_list
+
+def compute_relative_information_gain(wifi_data_list, click_number_list, category_name, feature_names):
+	print 'relative information gain'
+	para_number = len(wifi_data_list[0])
+	para_record = []
+	for i in range(para_number):
+		para_record.append([])
+	for item in wifi_data_list:
+		for i in range(para_number):
+			para_record[i].append(item[i])
+	
+	corrcoef_list = []
+	result = ''
+
+	for i in range(para_number):
+		rt_X, rt_Y = bin_data(para_record[i], click_number_list, 10)
+		final_X = []
+		final_Y = []
+		for j in range(len(rt_X)):
+			for item in rt_Y[j]:
+				final_X.append(rt_X[j])
+				final_Y.append(item)
+		# final_X = para_record[i]
+		# final_Y = click_number_list
+		H_Y = metrics.mutual_info_score(final_Y, final_Y)
+		info_gain = metrics.mutual_info_score(final_Y, final_X)
+		coef = info_gain / H_Y
+
+		corrcoef_list.append(coef)
+		result = result + '\t' + (str)(coef)
+		# print feature_names[i]
+	print max([abs(t) for t in corrcoef_list])
+	return corrcoef_list
 
 def scatter_plot(wifi_data_list, click_number_list, category_name, feature_names):
 	para_number = len(wifi_data_list[0])
@@ -451,36 +515,40 @@ def aggregate_records():
 	portal_lines = []
 	portal_lines = portal_lines + read_records_of_a_site('sina')
 	portal_lines = portal_lines + read_records_of_a_site('163')
-	portal_lines = portal_lines + read_records_of_a_site('qq')
+	# portal_lines = portal_lines + read_records_of_a_site('qq')
+	process_data(portal_lines, 'portal')
 
 	video_lines = []
 	video_lines = video_lines + read_records_of_a_site('bilibili')
 	video_lines = video_lines + read_records_of_a_site('acfun')
 	video_lines = video_lines + read_records_of_a_site('tudou')
 	video_lines = video_lines + read_records_of_a_site('youku')
+	process_data(video_lines, 'video')
 
 	shop_lines = []
-	shop_lines = shop_lines + read_records_of_a_site('amazon')
+	# shop_lines = shop_lines + read_records_of_a_site('amazon')
 	shop_lines = shop_lines + read_records_of_a_site('taobao')
 	shop_lines = shop_lines + read_records_of_a_site('tmall')
 	shop_lines = shop_lines + read_records_of_a_site('jd')
-	regress_data(shop_lines, 'shop')
+	process_data(shop_lines, 'shop')
 
 	social_lines = []
 	social_lines = social_lines + read_records_of_a_site('weibo')
 	social_lines = social_lines + read_records_of_a_site('zhihu')
-	regress_data(social_lines, 'social')
+	process_data(social_lines, 'social')
 
 
 def traverse_analyze():
 	for site in top_sites:
 		site_lines = read_records_of_a_site(site)
+		process_data(site_lines, site)
 
 
 if __name__ == '__main__':
-	site_lines = []
-	for site in top_sites:
-		site_lines = site_lines + read_records_of_a_site(site)
-	process_data(site_lines, 'all')
-
+	# site_lines = []
+	# for site in top_sites:
+		# site_lines = site_lines + read_records_of_a_site(site)
+	# process_data(site_lines, 'all')
+	# aggregate_records()
+	traverse_analyze()
 	# f_corrceof.close()
