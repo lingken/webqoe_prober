@@ -32,7 +32,8 @@ top_sites = {
 }
 
 feature_names = [
-	'channel_active',
+	'session_duration',
+	# 'channel_active',
 	'channel_busy',
 	'channel_air_utilization',
 	'channel_rxtime',
@@ -70,25 +71,45 @@ def find_records(file_name, start_time, end_time, device_MAC, AP_MAC):
 	end_index = bisect(lines, end_time)
 	return lines[start_index - 1 : end_index + 1] # The index may overflow
 
+# def compute_cdf(raw_data):
+# 	raw_data.sort()
+# 	X = []
+# 	Y = []
+# 	X.append(raw_data[0])
+# 	Y.append(0)
+# 	for i in range(len(raw_data) - 1):
+# 		if raw_data[i] != raw_data[i+1]:
+# 			X.append(raw_data[i])
+# 			Y.append((i + 1) * 1.0 / len(raw_data))
+# 	X.append(raw_data[-1])
+# 	Y.append(1)
+# 	return X, Y
+
 def compute_cdf(raw_data):
 	raw_data.sort()
 	X = []
 	Y = []
 	X.append(raw_data[0])
 	Y.append(0)
+	last = 0
 	for i in range(len(raw_data) - 1):
 		if raw_data[i] != raw_data[i+1]:
 			X.append(raw_data[i])
-			Y.append((i + 1) * 1.0 / len(raw_data))
+			Y.append(last)
+			X.append(raw_data[i])
+			last = (i + 1) * 1.0 / len(raw_data)
+			Y.append(last)
+	X.append(raw_data[-1])
+	Y.append(last)
 	X.append(raw_data[-1])
 	Y.append(1)
 	return X, Y
 
 def mean_confidence_interval(data, confidence=0.95):
-    a = 1.0*np.array(data)
+    a = 1.0*numpy.array(data)
     n = len(a)
-    m, se = np.mean(a), scipy.stats.sem(a)
-    h = se * sp.stats.t._ppf((1+confidence)/2., n-1)
+    m, se = numpy.mean(a), stats.sem(a)
+    h = se * stats.t._ppf((1+confidence)/2., n-1)
     return m, m-h, m+h
 
 regex_click_record = re.compile(r'click_number: (\d*), time: (\d*) - (\d*), Info: (\w*) len: (\d*) MAC: (.*) AP_MAC: (.*)$')
@@ -126,6 +147,9 @@ def get_wireless_record(line):
 		# print line
 		return None
 
+
+	session_duration = int(end_time) - int(start_time)
+
 	channel_records = find_records('channel.txt', start_time, end_time, MAC, AP_MAC)
 	if (len(channel_records) == 0):
 		# print 'len(channel_records) == 0'
@@ -139,10 +163,10 @@ def get_wireless_record(line):
 		# print 'channel_duration == 0'
 		# print line
 		return None
-	channel_active = ((int)(channel_end[1]) - (int)(channel_start[1])) * 1.0 / channel_duration
-	channel_busy = ((int)(channel_end[2]) - (int)(channel_start[2])) * 1.0 / channel_duration
-	channel_rxtime = ((int)(channel_end[3]) - (int)(channel_start[3])) * 1.0 / channel_duration
-	channel_txtime = ((int)(channel_end[4]) - (int)(channel_start[4])) * 1.0 / channel_duration
+	channel_active = ((int)(channel_end[1]) - (int)(channel_start[1]))
+	channel_busy = ((int)(channel_end[2]) - (int)(channel_start[2])) * 1.0 / channel_active
+	channel_rxtime = ((int)(channel_end[3]) - (int)(channel_start[3])) * 1.0 / channel_active
+	channel_txtime = ((int)(channel_end[4]) - (int)(channel_start[4])) * 1.0 / channel_active
 	# channel_air_utilization = ((int)(channel_end[2]) - (int)(channel_start[2])) * 1.0 / ((int)(channel_end[1]) - (int)(channel_start[1]))
 	channel_air_utilization = (( ((int)(channel_end[2])) - ((int)(channel_end[3])) - ((int)(channel_end[4])) ) - ( ((int)(channel_start[2])) - ((int)(channel_start[3])) - ((int)(channel_start[4])) )) * 1.0 / ((int)(channel_end[1]) - (int)(channel_start[1]))
 	if ((channel_busy < 0) or (channel_rxtime < 0) or (channel_txtime < 0)):
@@ -222,7 +246,8 @@ def get_wireless_record(line):
 	station_receive_phyrate = station_receive_phyrate * 1.0 / station_record_number
 
 	rt = []
-	
+	if 'session_duration' in feature_dict:
+		rt.append(session_duration)
 	if 'channel_active' in feature_dict:
 		rt.append(channel_active)
 	if 'channel_busy' in feature_dict:
@@ -290,6 +315,7 @@ def statistic_info(lines, median):
 	print 'median: %d' % click_number_list[len(click_number_list) / 2]
 
 kendall_record = []
+info_gain_record = []
 def process_data(lines, category_name):
 	Line_number = 0
 	Omit_number = 0
@@ -308,7 +334,7 @@ def process_data(lines, category_name):
 		if omit_click_number(click_number):
 			Omit_number = Omit_number + 1
 			continue
-		wifi_data, rt = get_wireless_record(line)	
+		wifi_data = get_wireless_record(line)	
 		if wifi_data is None:
 			None_number = None_number + 1
 			continue
@@ -319,11 +345,15 @@ def process_data(lines, category_name):
 
 	# different procedures to process data
 	# plot_confidence_interval(X, y, category_name)
+	# plot_p25_p75(X, y, category_name)
 	# scatter_plot(X, y, category_name)
+
 	kendall_result = compute_kendall_correlation(X, y, category_name)
-	# compute_relative_information_gain(X, y, category_name)
-	print kendall_result
 	kendall_record.append([kendall_result, Valid_number])
+	
+	info_gain_result = compute_relative_information_gain(X, y, category_name)
+	info_gain_record.append([info_gain_result, Valid_number])
+	
 
 
 def regress_data(wifi_data_list, click_number_list, category_name):
@@ -407,6 +437,7 @@ def bin_data(univariate_x, y, bins):
 	return rt_X, rt_Y
 
 def plot_confidence_interval(wifi_data_list, click_number_list, category_name):
+	print 'plot confidence interval: %s' % category_name
 	para_number = len(wifi_data_list[0])
 	para_record = []
 	for i in range(para_number):
@@ -415,13 +446,72 @@ def plot_confidence_interval(wifi_data_list, click_number_list, category_name):
 		for i in range(para_number):
 			para_record[i].append(item[i])
 
+	os.system('mkdir ../figure/confidence_interval/%s' % category_name)
+	f_info = open('../figure/confidence_interval/%s/%s.txt' % (category_name, category_name), 'w')
 	for i in range(para_number):
 		rt_X, rt_Y = bin_data(para_record[i], click_number_list, 10)
-
+		# print 'parameter: %s' % feature_names[i]
+		f_info.write('parameter: %s\n' % feature_names[i])
+		lower_list = []
+		mid_list = []
+		upper_list = []
+		info = ''
 		for j in range(len(rt_X)):
-			for item in rt_Y[j]:
-				plt.scatter(rt_X[j], item)
-		plt.savefig('../figure/confident_interval_%s_%s.pdf' % (category_name, feature_names[i]))
+			info = info + ('%f: %d, ' % (rt_X[j], len(rt_Y[j])))
+			mid, lower, upper = mean_confidence_interval(rt_Y[j])
+			lower_list.append(lower)
+			mid_list.append(mid)
+			upper_list.append(upper)
+			# tmp_X = [rt_X[j], rt_X[j], rt_X[j]]
+			# tmp_Y = [mid, lower, upper]
+			# plt.scatter(tmp_X, tmp_Y)
+		# for j in range(len(rt_X)):
+			# for item in rt_Y[j]:
+				# plt.scatter(rt_X[j], item)
+		# print info
+		f_info.write('%s\n' % info)
+		plt.plot(rt_X, lower_list)
+		plt.plot(rt_X, mid_list)
+		plt.plot(rt_X, upper_list)
+		plt.savefig('../figure/confidence_interval/%s/%s.pdf' % (category_name, feature_names[i]))
+		plt.clf()
+	f_info.close()
+
+def plot_p25_p75(wifi_data_list, click_number_list, category_name):
+	para_number = len(wifi_data_list[0])
+	para_record = []
+	for i in range(para_number):
+		para_record.append([])
+	for item in wifi_data_list:
+		for i in range(para_number):
+			para_record[i].append(item[i])
+
+	os.system('mkdir ../figure/p25_p75/%s' % category_name)
+	for i in range(para_number):
+		rt_X, rt_Y = bin_data(para_record[i], click_number_list, 10)
+		mid_list = []
+		lower_list = []
+		upper_list = []
+		for j in range(len(rt_X)):
+			rt_Y[j].sort()
+			len_rt_Y_j = len(rt_Y[j])
+			mid = rt_Y[j][int(len_rt_Y_j * 0.5)]
+			lower = rt_Y[j][int(len_rt_Y_j * 0.25)]
+			upper = rt_Y[j][int(len_rt_Y_j * 0.75)]
+			mid_list.append(mid)
+			lower_list.append(lower)
+			upper_list.append(upper)
+			# mid, lower, upper = mean_confidence_interval(rt_Y[j])
+			# tmp_X = [rt_X[j], rt_X[j], rt_X[j]]
+			# tmp_Y = [lower, mid, upper]
+			# plt.scatter(tmp_X, tmp_Y)
+		# for j in range(len(rt_X)):
+			# for item in rt_Y[j]:
+				# plt.scatter(rt_X[j], item)
+		plt.plot(rt_X, lower_list)
+		plt.plot(rt_X, mid_list)
+		plt.plot(rt_X, upper_list)
+		plt.savefig('../figure/p25_p75/%s/%s.pdf' % (category_name, feature_names[i]))
 		plt.clf()
 
 # f_corrceof = open('%s/corrcoef.txt' % result_path, 'w')
@@ -520,17 +610,18 @@ def scatter_plot(wifi_data_list, click_number_list, category_name):
 	for item in wifi_data_list:
 		for i in range(para_number):
 			para_record[i].append(item[i])
-	os.system('mkdir ../figure/%s' % category_name)
+	os.system('mkdir ../figure/scatter_05_95/%s' % category_name)
 	for i in range(para_number):
 		
-		# tmp = zip(para_record[i], click_number_list)
-		# tmp.sort(key = lambda t: t[0])
-		# s_index = int(len(tmp) * 0.05)
-		# t_index = int(len(tmp) * 0.95)
-		# tmp = tmp[s_index : t_index]
-		# plt.scatter([data[0] for data in tmp], [data[1] for data in tmp])
-		plt.scatter(para_record[i], click_number_list)
-		plt.savefig('../figure/%s/%s_%s.pdf' % (category_name, category_name, feature_names[i]))
+		tmp = zip(para_record[i], click_number_list)
+		tmp.sort(key = lambda t: t[0])
+		s_index = int(len(tmp) * 0.05)
+		t_index = int(len(tmp) * 0.95)
+		tmp = tmp[s_index : t_index]
+		plt.scatter([data[0] for data in tmp], [data[1] for data in tmp])
+		
+		# plt.scatter(para_record[i], click_number_list)
+		plt.savefig('../figure/scatter_05_95/%s/%s_%s.pdf' % (category_name, category_name, feature_names[i]))
 		plt.clf()
 
 def aggregate_records():
@@ -566,22 +657,49 @@ def traverse_analyze():
 		process_data(site_lines, site)
 
 def accumulate():
+	# Kendall
 	para_number = len(kendall_record[0][0])
+	tmp_list = []
 	for i in range(para_number):
 		origin_X = []
 		for record in kendall_record:
 			for k in range(record[1]):
+			# for k in range(1):
 				origin_X.append(record[0][i])
 		X, Y = compute_cdf(origin_X)
-		plt.plot(X, Y)
-		# plt.savefig('../figure/kendall_cdf/%d.pdf' % i)
+		tmp, = plt.plot(X, Y, label='%s' % feature_names[i])
+		tmp_list.append(tmp)
+		# plt.legend([tmp], [feature_names[i]], 'lower right')
+		# plt.savefig('../figure/kendall_cdf/session_%s.pdf' % feature_names[i])
 		# plt.clf()
-	plt.savefig('../figure/kendall_cdf/aggregate.pdf')
+	plt.legend(tmp_list, feature_names, 'lower right')
+	plt.savefig('../figure/kendall_cdf/session_aggregate_legend.pdf')
+	# plt.savefig('../figure/kendall_cdf/session_aggregate.pdf')
+	plt.clf()
+
+	# Relative Information Gain
+	para_number = len(info_gain_record[0][0])
+	tmp_list = []
+	for i in range(para_number):
+		origin_X = []
+		for record in info_gain_record:
+			for k in range(record[1]):
+			# for k in range(1):
+				origin_X.append(record[0][i])
+		X, Y = compute_cdf(origin_X)
+		tmp, = plt.plot(X, Y, label='%s' % feature_names[i])
+		tmp_list.append(tmp)
+		# plt.legend([tmp], [feature_names[i]], 'lower right')
+		# plt.savefig('../figure/info_gain_cdf/session_%s.pdf' % feature_names[i])
+		# plt.clf()
+	plt.legend(tmp_list, feature_names, 'lower right')
+	plt.savefig('../figure/info_gain_cdf/session_aggregate_legend.pdf')
+	# plt.savefig('../figure/info_gain_cdf/session_aggregate.pdf')
 	plt.clf()
 
 def initialize():
 	for i in range(len(feature_names)):
-		feature_dict[feature_names] = i
+		feature_dict[feature_names[i]] = i
 
 if __name__ == '__main__':
 	initialize()
@@ -590,7 +708,9 @@ if __name__ == '__main__':
 	# for site in top_sites:
 		# site_lines = site_lines + read_records_of_a_site(site)
 	# process_data(site_lines, 'all')
+
 	# aggregate_records()
 	traverse_analyze()
 	accumulate()
+
 	# f_corrceof.close()
