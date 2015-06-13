@@ -150,6 +150,9 @@ def get_wireless_record(line):
 
 	session_duration = int(end_time) - int(start_time)
 
+	# if session_duration > 360:
+		# return None
+
 	channel_records = find_records('channel.txt', start_time, end_time, MAC, AP_MAC)
 	if (len(channel_records) == 0):
 		# print 'len(channel_records) == 0'
@@ -344,15 +347,15 @@ def process_data(lines, category_name):
 	print 'process data: %s, valid_data: %d, original_data: %d, omit: %d, none: %d' % (category_name, Valid_number, Line_number, Omit_number, None_number)
 
 	# different procedures to process data
-	# plot_confidence_interval(X, y, category_name)
-	# plot_p25_p75(X, y, category_name)
-	# scatter_plot(X, y, category_name)
+	plot_confidence_interval(X, y, category_name)
+	plot_p25_p75(X, y, category_name)
+	scatter_plot(X, y, category_name)
 
-	kendall_result = compute_kendall_correlation(X, y, category_name)
-	kendall_record.append([kendall_result, Valid_number])
+	# kendall_result = compute_kendall_correlation(X, y, category_name)
+	# kendall_record.append([kendall_result, Valid_number])
 	
-	info_gain_result = compute_relative_information_gain(X, y, category_name)
-	info_gain_record.append([info_gain_result, Valid_number])
+	# info_gain_result = compute_relative_information_gain(X, y, category_name)
+	# info_gain_record.append([info_gain_result, Valid_number])
 	
 
 
@@ -434,6 +437,37 @@ def bin_data(univariate_x, y, bins):
 			rt_Y.append(basket[i])
 			rt_X.append(combine[0][0] + i * step)
 			# rt_X.append(combine[0][0] + (i * 1.0 + 0.5) * step)
+	return rt_X, rt_Y
+
+def another_bin_data(univariate_x, y, bins):
+	# 根据X参数数据量平分十份
+	# 根据x排序，对y也排序
+	combine = zip(univariate_x, y)
+	combine.sort(key = lambda t: t[0])
+	# bin之后的x对应一个y的列表
+	# use data with outliers omitted
+	combine = combine[int(len(combine) * 0.05) : int(len(combine) * 0.95)]
+
+	number_each_bin = len(combine) / bins
+	rt_X = []
+	rt_Y = []
+	k = 0
+	while (k + number_each_bin < len(combine)):
+		rt_Y.append([])
+		tmp = 0
+		for item in combine[k : k + number_each_bin]:
+			rt_Y[-1].append(item[1])
+			tmp = tmp + item[0]
+		tmp = tmp * 1.0 / number_each_bin
+		rt_X.append(tmp)
+		k = k + number_each_bin
+	rt_Y.append([])
+	tmp = 0
+	for item in combine[k : ]:
+		rt_Y[-1].append(item[1])
+		tmp = tmp + item[0]
+	tmp = tmp * 1.0 / (len(combine) - k)
+	rt_X.append(tmp)
 	return rt_X, rt_Y
 
 def plot_confidence_interval(wifi_data_list, click_number_list, category_name):
@@ -669,13 +703,13 @@ def accumulate():
 		X, Y = compute_cdf(origin_X)
 		tmp, = plt.plot(X, Y, label='%s' % feature_names[i])
 		tmp_list.append(tmp)
-		# plt.legend([tmp], [feature_names[i]], 'lower right')
-		# plt.savefig('../figure/kendall_cdf/session_%s.pdf' % feature_names[i])
-		# plt.clf()
-	plt.legend(tmp_list, feature_names, 'lower right')
-	plt.savefig('../figure/kendall_cdf/session_aggregate_legend.pdf')
+		plt.legend([tmp], [feature_names[i]], 'lower right')
+		plt.savefig('../figure/kendall_cdf/session_%s.pdf' % feature_names[i])
+		plt.clf()
 	# plt.savefig('../figure/kendall_cdf/session_aggregate.pdf')
-	plt.clf()
+	# plt.legend(tmp_list, feature_names, 'lower right')
+	# plt.savefig('../figure/kendall_cdf/session_aggregate_legend.pdf')	
+	# plt.clf()
 
 	# Relative Information Gain
 	para_number = len(info_gain_record[0][0])
@@ -689,13 +723,13 @@ def accumulate():
 		X, Y = compute_cdf(origin_X)
 		tmp, = plt.plot(X, Y, label='%s' % feature_names[i])
 		tmp_list.append(tmp)
-		# plt.legend([tmp], [feature_names[i]], 'lower right')
-		# plt.savefig('../figure/info_gain_cdf/session_%s.pdf' % feature_names[i])
-		# plt.clf()
-	plt.legend(tmp_list, feature_names, 'lower right')
-	plt.savefig('../figure/info_gain_cdf/session_aggregate_legend.pdf')
+		plt.legend([tmp], [feature_names[i]], 'lower right')
+		plt.savefig('../figure/info_gain_cdf/session_%s.pdf' % feature_names[i])
+		plt.clf()
 	# plt.savefig('../figure/info_gain_cdf/session_aggregate.pdf')
-	plt.clf()
+	# plt.legend(tmp_list, feature_names, 'lower right')
+	# plt.savefig('../figure/info_gain_cdf/session_aggregate_legend.pdf')
+	# plt.clf()
 
 def initialize():
 	for i in range(len(feature_names)):
@@ -704,13 +738,13 @@ def initialize():
 if __name__ == '__main__':
 	initialize()
 
-	# site_lines = []
-	# for site in top_sites:
-		# site_lines = site_lines + read_records_of_a_site(site)
-	# process_data(site_lines, 'all')
+	site_lines = []
+	for site in top_sites:
+		site_lines = site_lines + read_records_of_a_site(site)
+	process_data(site_lines, 'all')
+	aggregate_records()
 
-	# aggregate_records()
-	traverse_analyze()
-	accumulate()
+	# traverse_analyze()
+	# accumulate()
 
 	# f_corrceof.close()
