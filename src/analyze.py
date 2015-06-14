@@ -8,8 +8,12 @@ from random import shuffle
 from scipy import stats
 from sklearn import metrics
 from bisect import bisect
-# from sklearn import tree
+
+from sklearn import tree
 # from sklearn.tree import DecisionTreeRegressor
+from sklearn import cross_validation
+# from sklearn import svm
+
 import matplotlib.pyplot as plt
 result_path = '../result'
 
@@ -18,7 +22,7 @@ top_sites = {
 	# 'qq', #3
 	'sina', #4
 	'weibo', #5
-	'tmall', #6
+	# 'tmall', #6
 	# 'amazon', #11
 	'163', #17
 	'jd', #19
@@ -32,21 +36,22 @@ top_sites = {
 }
 
 feature_names = [
+	# 'delay',
 	'session_duration',
 	# 'channel_active',
-	'channel_busy',
+	# 'channel_busy',
 	'channel_air_utilization',
-	'channel_rxtime',
-	'channel_txtime',
-	'station_rxbyte',
-	'station_txbyte',
-	'station_send_packet',
+	# 'channel_rxtime',
+	# 'channel_txtime', # additional
+	# 'station_rxbyte',
+	# 'station_txbyte',
+	# 'station_send_packet', # additional
 	'station_resend_packet',
 	'station_signal_strength',
-	'station_send_phyrate',
+	# 'station_send_phyrate',
 	'station_receive_phyrate',
-	'statition_dev_number',
-	'station_resend_ratio',
+	# 'statition_dev_number',
+	# 'station_resend_ratio',
 ]
 feature_dict = {}
 
@@ -68,8 +73,21 @@ def find_records(file_name, start_time, end_time, device_MAC, AP_MAC):
 
 	# start_time and end_time are string
 	start_index = bisect(lines, start_time)
+	end_time = str(int(end_time) + 1)
 	end_index = bisect(lines, end_time)
 	return lines[start_index - 1 : end_index + 1] # The index may overflow
+
+def find_delay_records(start_time, end_time, AP_MAC):
+	file_path = '../delay_use/%s/delay.txt' % AP_MAC
+	f = open(file_path, 'r')
+	lines = f.readlines()
+	f.close()
+
+	# start_time and end_time are string
+	start_index = bisect(lines, start_time)
+	end_time = str(int(end_time) + 1)
+	end_index = bisect(lines, end_time)
+	return lines[start_index - 1 : end_index + 1]
 
 # def compute_cdf(raw_data):
 # 	raw_data.sort()
@@ -134,17 +152,23 @@ def get_wireless_record(line):
 	visit_length = match.group(5);
 	MAC = match.group(6)
 	AP_MAC = match.group(7)
+	
+	MAC_parts = MAC.split(':')
+	NEW_MAC = ''
+	# go wrong if more than one part shortened by xx::xx
+	for item in MAC_parts:
+		if len(item) == 1:
+			item = '0' + item
+		if len(item) == 0:
+			item = '00'
+		NEW_MAC = NEW_MAC + item
+	DEV_MAC = NEW_MAC.lower()
 
-	AP_file_path = '../wifidata/%s' % AP_MAC
-	if not os.path.isdir(AP_file_path):
-		# print 'No such AP'
-		# print line
+	if not os.path.exists('../wifidata/%s/channel.txt' % AP_MAC):
 		return None
-	AP_file_list = os.listdir(AP_file_path)
-	# print AP_file_list
-	if ('station.txt' not in AP_file_list) or ('channel.txt' not in AP_file_list):
-		# print 'No station.txt or channel.txt'
-		# print line
+	if not os.path.exists('../wifidata/%s/station.txt' % AP_MAC):
+		return None
+	if not os.path.exists('../delay_use/%s/delay.txt' % AP_MAC):
 		return None
 
 
@@ -152,6 +176,29 @@ def get_wireless_record(line):
 
 	# if session_duration > 360:
 		# return None
+
+	delay_time = 0
+	# delay_records = find_delay_records(start_time, end_time, AP_MAC)
+	# if (len(delay_records) == 0):
+	# 	return None
+	# # ack_count = 0
+	# # data_count = 0
+	# delay_count = 0
+	# for item in delay_records:
+	# 	# if item.find(DEV_MAC) < 0:
+	# 		# continue
+	# 	delay_parts = item.split(',')
+	# 	time1 = float(delay_parts[0])
+	# 	time3 = float(delay_parts[2])
+	# 	delay_count = delay_count + 1
+	# 	delay_time = delay_time + (time3 - time1)
+	# if delay_count == 0:
+	# 	return None
+	# delay_time = delay_time / delay_count
+
+
+
+
 
 	channel_records = find_records('channel.txt', start_time, end_time, MAC, AP_MAC)
 	if (len(channel_records) == 0):
@@ -180,16 +227,6 @@ def get_wireless_record(line):
 	station_startindex = -1
 	station_endindex = -1
 
-	MAC_parts = MAC.split(':')
-	NEW_MAC = ''
-	# go wrong if more than one part shortened by xx::xx
-	for item in MAC_parts:
-		if len(item) == 1:
-			item = '0' + item
-		if len(item) == 0:
-			item = '00'
-		NEW_MAC = NEW_MAC + item
-	DEV_MAC = NEW_MAC.lower()
 	# print DEV_MAC
 	for i in range(len(station_records)):
 		if station_records[i].find(DEV_MAC) >= 0:
@@ -249,6 +286,8 @@ def get_wireless_record(line):
 	station_receive_phyrate = station_receive_phyrate * 1.0 / station_record_number
 
 	rt = []
+	if 'delay' in feature_dict:
+		rt.append(delay_time)
 	if 'session_duration' in feature_dict:
 		rt.append(session_duration)
 	if 'channel_active' in feature_dict:
@@ -317,6 +356,16 @@ def statistic_info(lines, median):
 	print 'session_legnth <= %d: %f, session_legnth > %d: %f' % (key, n_category_0 * 1.0 / len(click_number_list), key, n_category_1 * 1.0 / len(click_number_list))
 	print 'median: %d' % click_number_list[len(click_number_list) / 2]
 
+def coordinates_to_file(X_data, Y_data, file_name):
+	f = open(file_name, 'w')
+	for item in X_data:
+		f.write('%s, ' % item)
+	f.write('\n')
+	for item in Y_data:
+		f.write('%s, ' % item)
+	f.write('\n')
+	f.close()
+
 kendall_record = []
 info_gain_record = []
 def process_data(lines, category_name):
@@ -347,9 +396,11 @@ def process_data(lines, category_name):
 	print 'process data: %s, valid_data: %d, original_data: %d, omit: %d, none: %d' % (category_name, Valid_number, Line_number, Omit_number, None_number)
 
 	# different procedures to process data
-	plot_confidence_interval(X, y, category_name)
-	plot_p25_p75(X, y, category_name)
-	scatter_plot(X, y, category_name)
+	regress_data(X, y, category_name)
+
+	# plot_confidence_interval(X, y, category_name)
+	# plot_p25_p75(X, y, category_name)
+	# scatter_plot(X, y, category_name)
 
 	# kendall_result = compute_kendall_correlation(X, y, category_name)
 	# kendall_record.append([kendall_result, Valid_number])
@@ -360,43 +411,37 @@ def process_data(lines, category_name):
 
 
 def regress_data(wifi_data_list, click_number_list, category_name):
+	print 'regression: %s' % category_name
 	X = wifi_data_list
 	sorted_click_number_list = sorted(click_number_list)
-	median = sorted_click_number_list(len(sorted_click_number_list) / 2)
+	median = sorted_click_number_list[len(sorted_click_number_list) / 2]
 
+	n_category_0 = 0
+	n_category_1 = 0
 	y = []
 	for item in click_number_list:
 		if item <= median:
+			n_category_0 = n_category_0 + 1
 			y.append(0)
 		else:
+			n_category_1 = n_category_1 + 1
 			y.append(1)
-
-	# clf = DecisionTreeRegressor(max_depth = 3)
-	clf = tree.DecisionTreeClassifier(max_depth=None, criterion='entropy', min_samples_leaf=1)
+	p_category_0 = n_category_0 * 1.0 / (n_category_0 + n_category_1)
 	
-	# # validate code
-	# combine = zip(X, y)
-	# correct_list = []
-	# pivot = int(0.9 * len(combine))
-	# for i in range(1000):
-	# 	answer = []
-	# 	shuffle(combine)
-	# 	clf.fit([data[0] for data in combine[:pivot]], [data[1] for data in combine[:pivot]])
-	# 	predicted = clf.predict([data[0] for data in combine[pivot:]])
-	# 	for item in [data[1] for data in combine[pivot:]]:
-	# 		if item <= median:
-	# 			answer.append(0)
-	# 		else:
-	# 			answer.append(1)
-	# 	rate = numpy.mean(predicted == answer)
-	# 	# print rate
-	# 	correct_list.append(rate)
+	# clf = DecisionTreeRegressor(max_depth = 3)
+	# clf = tree.DecisionTreeClassifier(max_depth=13, criterion='entropy', min_samples_leaf=1, min_samples_split=15)
+	clf = tree.DecisionTreeClassifier(max_depth=None, criterion='entropy', min_samples_leaf=20, min_samples_split=15)
+	# clf = svm.SVC(kernel='rbf', C=1)
+	
+	# validate code
 
-	# print 'final avg: %f' % numpy.mean(correct_list)
-	# statistic_info(lines, median)
-	# print
-
+	scores = cross_validation.cross_val_score(clf, X, y, cv=10)
+	print 'category_0: %f, n_category_1: %f' % (p_category_0, 1 - p_category_0)
+	print 'Avg accuracy: %f' % scores.mean()
+	print 'median: %d' % median
 	clf.fit(X, y)
+	predicted = clf.predict(X)
+	print 'On training set: %f' % (numpy.mean(predicted == y))
 
 	# # dump tree modle
 	# output = open('%s/%s.pkl' % (result_path, category_name), 'w')
@@ -407,7 +452,6 @@ def regress_data(wifi_data_list, click_number_list, category_name):
 	with open('%s/%s.dot' % (result_path, category_name), 'w') as f:
 		f = tree.export_graphviz(clf, out_file = f, feature_names=feature_names)
 	os.system('dot -Tpdf %s/%s.dot -o %s/%s.pdf' % (result_path, category_name, result_path, category_name))
-	print 'Original data: %d, Omit data: %d, None data: %d' % (Line_number, Omit_number, None_number)
 
 def bin_data(univariate_x, y, bins):
 	# 根据x排序，对y也排序
@@ -528,6 +572,7 @@ def plot_p25_p75(wifi_data_list, click_number_list, category_name):
 		upper_list = []
 		for j in range(len(rt_X)):
 			rt_Y[j].sort()
+			print rt_Y[j]
 			len_rt_Y_j = len(rt_Y[j])
 			mid = rt_Y[j][int(len_rt_Y_j * 0.5)]
 			lower = rt_Y[j][int(len_rt_Y_j * 0.25)]
@@ -545,6 +590,7 @@ def plot_p25_p75(wifi_data_list, click_number_list, category_name):
 		plt.plot(rt_X, lower_list)
 		plt.plot(rt_X, mid_list)
 		plt.plot(rt_X, upper_list)
+		plt.axis([0, 0.1, 0, 10])
 		plt.savefig('../figure/p25_p75/%s/%s.pdf' % (category_name, feature_names[i]))
 		plt.clf()
 
@@ -652,8 +698,11 @@ def scatter_plot(wifi_data_list, click_number_list, category_name):
 		s_index = int(len(tmp) * 0.05)
 		t_index = int(len(tmp) * 0.95)
 		tmp = tmp[s_index : t_index]
-		plt.scatter([data[0] for data in tmp], [data[1] for data in tmp])
-		
+		X_data = [data[0] for data in tmp]
+		Y_data = [data[1] for data in tmp]
+		coordinates_to_file(X_data, Y_data, '../figure/scatter_05_95/%s/%s.csv' % (category_name, feature_names[i]))
+		plt.scatter(X_data, Y_data)
+
 		# plt.scatter(para_record[i], click_number_list)
 		plt.savefig('../figure/scatter_05_95/%s/%s_%s.pdf' % (category_name, category_name, feature_names[i]))
 		plt.clf()
@@ -736,13 +785,16 @@ def initialize():
 		feature_dict[feature_names[i]] = i
 
 if __name__ == '__main__':
+	# lines = find_delay_records('1433521311', '1433521408', '08BD43CCEAD0')
+	# print lines
+
 	initialize()
 
 	site_lines = []
 	for site in top_sites:
 		site_lines = site_lines + read_records_of_a_site(site)
 	process_data(site_lines, 'all')
-	aggregate_records()
+	# aggregate_records()
 
 	# traverse_analyze()
 	# accumulate()
